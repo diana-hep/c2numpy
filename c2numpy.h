@@ -28,6 +28,71 @@ typedef enum {
     C2NUMPY_COMPLEX128,  // Complex number, represented by two 64-bit floats (real and imaginary components)
 } c2numpy_type;
 
+// FIXME: all of the "<" signs should be system-dependent (little endian)
+const char *c2numpy_bool = "|b1";
+const char *c2numpy_int = "<i8";
+const char *c2numpy_intc = "<i4";   // FIXME: should be system-dependent
+const char *c2numpy_intp = "<i8";   // FIXME: should be system-dependent
+const char *c2numpy_int8 = "|i1";
+const char *c2numpy_int16 = "<i2";
+const char *c2numpy_int32 = "<i4";
+const char *c2numpy_int64 = "<i8";
+const char *c2numpy_uint8 = "|u1";
+const char *c2numpy_uint16 = "<u2";
+const char *c2numpy_uint32 = "<u4";
+const char *c2numpy_uint64 = "<u8";
+const char *c2numpy_float = "<f8";
+const char *c2numpy_float16 = "<f2";
+const char *c2numpy_float32 = "<f4";
+const char *c2numpy_float64 = "<f8";
+const char *c2numpy_complex = "<c16";
+const char *c2numpy_complex64 = "<c8";
+const char *c2numpy_complex128 = "<c16";
+
+// FIXME: This is where you can put in system dependence.
+const char *c2numpy_descr(c2numpy_type type) {
+    switch (type) {
+      case C2NUMPY_BOOL:
+          return c2numpy_bool;
+      case C2NUMPY_INT:
+          return c2numpy_int;
+      case C2NUMPY_INTC:
+          return c2numpy_intc;
+      case C2NUMPY_INTP:
+          return c2numpy_intp;
+      case C2NUMPY_INT8:
+          return c2numpy_int8;
+      case C2NUMPY_INT16:
+          return c2numpy_int16;
+      case C2NUMPY_INT32:
+          return c2numpy_int32;
+      case C2NUMPY_INT64:
+          return c2numpy_int64;
+      case C2NUMPY_UINT8:
+          return c2numpy_uint8;
+      case C2NUMPY_UINT16:
+          return c2numpy_uint16;
+      case C2NUMPY_UINT32:
+          return c2numpy_uint32;
+      case C2NUMPY_UINT64:
+          return c2numpy_uint64;
+      case C2NUMPY_FLOAT:
+          return c2numpy_float;
+      case C2NUMPY_FLOAT16:
+          return c2numpy_float16;
+      case C2NUMPY_FLOAT32:
+          return c2numpy_float32;
+      case C2NUMPY_FLOAT64:
+          return c2numpy_float64;
+      case C2NUMPY_COMPLEX:
+          return c2numpy_complex;
+      case C2NUMPY_COMPLEX64:
+          return c2numpy_complex64;
+      case C2NUMPY_COMPLEX128:
+          return c2numpy_complex128;
+    }
+}
+
 typedef struct {
     char buffer[16];
     FILE *file;
@@ -73,11 +138,50 @@ int c2numpy_addcolumn(c2numpy_writer *writer, const char *name, c2numpy_type typ
         free(oldColumnTypes);
 }
 
-
 int c2numpy_open(c2numpy_writer *writer) {
     char *fileName = (char*)malloc(strlen(writer->outputFilePrefix) + 15);
     sprintf(fileName, "%s%d.npy", writer->outputFilePrefix, writer->currentFileNumber);
     writer->file = fopen(fileName, "wb");
+
+    // FIXME: loop over multiples of 128, attempting to fit the header in each, break when it works.
+    // FIXME: if descrSize must be greater than 65535, switch to version 2.0
+    uint16_t headerSize = 128;
+    char *header = (char*)malloc(headerSize + 1);
+    uint16_t descrSize = headerSize - 10;
+
+    header[0] = 147;                    // magic
+    header[1] = 'N';
+    header[2] = 'U';
+    header[3] = 'M';
+    header[4] = 'P';
+    header[5] = 'Y';
+    header[6] = 1;                      // format version 1.0
+    header[7] = 0;
+    *(uint16_t*)(header + 8) = descrSize;   // version 1.0 has a 16-byte descrSize
+
+    int offset = headerSize - descrSize;
+    offset += sprintf((header + offset), "{'descr': [");
+
+    for (int column = 0;  column < writer->numColumns;  ++column) {
+        offset += sprintf((header + offset), "('%s', '%s')",
+                          writer->columnNames[column],
+                          c2numpy_descr(writer->columnTypes[column]));
+        if (column < writer->numColumns - 1)
+            offset += sprintf((header + offset), ", ");
+    }
+
+    offset += sprintf((header + offset), "], 'fortran_order': False, 'shape': (%d,), }", writer->numRowsPerFile);
+
+    while (offset < headerSize) {
+        if (offset < headerSize - 1)
+            header[offset] = ' ';
+        else
+            header[offset] = '\n';
+        offset += 1;
+    }
+    header[headerSize] = 0;
+
+    fwrite(header, 1, headerSize, writer->file);
 }
 
 int c2numpy_fill(c2numpy_writer *writer, ...) {
