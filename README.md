@@ -27,6 +27,8 @@ and view the results with
 
 ### Enumeration constants for Numpy types: `c2numpy_type`
 
+See [http://docs.scipy.org/doc/numpy/user/basics.types.html](number type definitions) in the Numpy documentation.
+
     C2NUMPY_BOOL        // Boolean (True or False) stored as a byte
     C2NUMPY_INT         // Default integer type (same as C long; normally either int64 or int32)
     C2NUMPY_INTC        // Identical to C int (normally int32 or int64)
