@@ -125,7 +125,7 @@ typedef struct {
 const char *c2numpy_descr(c2numpy_type type);
 ```
 
-Rarely needed by typical users; converts a `c2numpy_type` to the corresponding Numpy "descr" string. Returns `NULL` if the `type` is invalid.
+Rarely needed by typical users; converts a `c2numpy_type` to the corresponding Numpy "descr" string. **Returns** `NULL` if the `type` is invalid.
 
 ### Initialize a writer object: `c2numpy_init`
 
@@ -140,7 +140,7 @@ This is the first function you should call on a new writer. After this, call `c2
    * `numRowsPerFile`: number of rows to write before starting a new file.
    * **returns:** 0 if successful, -1 otherwise
 
-**Copies** the `outputFilePrefix`, so you are responsible for deleting the original if necessary.
+**Copies** the string `outputFilePrefix`, so you are responsible for deleting the original if necessary.
 
 ### Add a column to the writer: `c2numpy_addcolumn`
 
@@ -155,7 +155,7 @@ This is the second function you should call on a new writer. Call it once for ea
    * `type`: the type of the column to add (see enumeration constants above).
    * **returns:** 0 if successful, -1 otherwise
 
-**Copies** the `name`, so you are responsible for deleting the original if necessary.
+**Copies** the string `name`, so you are responsible for deleting the original if necessary.
 
 ### Optional open file: `c2numpy_open`
 
@@ -163,7 +163,7 @@ This is the second function you should call on a new writer. Call it once for ea
 int c2numpy_open(c2numpy_writer *writer);
 ```
 
-Open a file and write its header to disk. If not called, adding data will open the file, but you might want to call it immediately to learn about I/O errors early.
+Open a file and write its header to disk. If not called, writing data will open the file, but you might want to call it immediately to learn about I/O errors early.
 
 **Returns:** 0 if successful and -1 otherwise.
 
