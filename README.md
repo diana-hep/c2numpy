@@ -8,7 +8,7 @@ Fills a collection of .npy files with a maximum size, a common prefix and a rota
     myarray[3:5]         # all columns, slice of rows
                          # etc.
 
-This project does not support _reading_ of Numpy files.
+This project does not support _reading_ of Numpy files in C.
 
 ## Installation
 
