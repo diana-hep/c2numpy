@@ -23,6 +23,31 @@ and view the results with
     python -c "import numpy; print numpy.load(open('testout0.npy'));"
     python -c "import numpy; print numpy.load(open('testout1.npy'));"
 
+## C example
+
+    // declare writer
+    c2numpy_writer writer;
+
+    // initialize it and add columns
+    c2numpy_init(&writer, "testout", 5);
+    c2numpy_addcolumn(&writer, "one", C2NUMPY_INTC);
+    c2numpy_addcolumn(&writer, "two", C2NUMPY_FLOAT64);
+    c2numpy_addcolumn(&writer, "three", C2NUMPY_STRING + 5);
+
+    // first row
+    c2numpy_row(&writer, 1, 1.1, "ONE");
+
+    // second row
+    c2numpy_row(&writer, 2, 2.2, "TWO");
+
+    // third row
+    c2numpy_intc(&writer, 3);
+    c2numpy_float64(&writer, 3.3);
+    c2numpy_string(&writer, "THREE");
+
+    // close file
+    c2numpy_close(&writer);
+
 ## C API
 
 ### Enumeration constants for Numpy types: `c2numpy_type`
@@ -122,16 +147,38 @@ Varadic function writes a whole row at a time. If `writer->currentColumn` is out
 
 ### Write an item of data: `c2numpy_*`
 
-The following suite of functions support writing one item (row and column) at a time. 
+The following suite of functions support writing one item (row and column) at a time. They check the requested data type against the expected data type for the current column, but cannot prevent column-misalignment if all data types are the same.
 
+    int c2numpy_bool(c2numpy_writer *writer, int8_t data);        // "bool" is just a byte
+    int c2numpy_int(c2numpy_writer *writer, int64_t data);        // Numpy's default int is 64-bit
+    int c2numpy_intc(c2numpy_writer *writer, int data);           // the built-in C int
+    int c2numpy_intp(c2numpy_writer *writer, size_t data);        // intp is Numpy's way of saying size_t
+    int c2numpy_int8(c2numpy_writer *writer, int8_t data);
+    int c2numpy_int16(c2numpy_writer *writer, int16_t data);
+    int c2numpy_int32(c2numpy_writer *writer, int32_t data);
+    int c2numpy_int64(c2numpy_writer *writer, int64_t data);
+    int c2numpy_uint8(c2numpy_writer *writer, uint8_t data);
+    int c2numpy_uint16(c2numpy_writer *writer, uint16_t data);
+    int c2numpy_uint32(c2numpy_writer *writer, uint32_t data);
+    int c2numpy_uint64(c2numpy_writer *writer, uint64_t data);
+    int c2numpy_float(c2numpy_writer *writer, double data);       // Numpy's "float" is a double
+    // int c2numpy_float16(c2numpy_writer *writer, ??? data);     // how to do float16 in C?
+    int c2numpy_float32(c2numpy_writer *writer, float data);
+    int c2numpy_float64(c2numpy_writer *writer, double data);
+    // int c2numpy_complex(c2numpy_writer *writer, ??? data);     // how to do complex in C?
+    // int c2numpy_complex64(c2numpy_writer *writer, ??? data);
+    // int c2numpy_complex128(c2numpy_writer *writer, ??? data);
+    int c2numpy_string(c2numpy_writer *writer, const char *string);
 
+### Required close file: `c2numpy_close`
 
+    int c2numpy_close(c2numpy_writer *writer);
 
+If you do not explicitly close the writer, your last file may be corrupted. Be sure to do this after your loop over data.
 
+## C++ example and C++ API
 
-## C++ API
-
-Not written yet (will wrap around the C functions with macros).
+Not written yet (will wrap the C functions with C++ class structure using [__cplusplus](http://stackoverflow.com/a/6779715/1623645)).
 
 ## To do
 
