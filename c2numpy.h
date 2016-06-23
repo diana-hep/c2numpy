@@ -33,22 +33,21 @@ typedef enum {
 
 // a Numpy writer object
 typedef struct {
-    char buffer[16];     // overwritten frequently; put it where the memory is aligned
+    char buffer[16];              // used for temporary copies in c2numpy_row
 
-    FILE *file;
-    char *outputFilePrefix;
-    int64_t sizeSeekPosition;
-    int64_t sizeSeekSize;
+    FILE *file;                   // output file handle
+    char *outputFilePrefix;       // output file name, not including the rotating number and .npy
+    int64_t sizeSeekPosition;     // (internal) keep track of Numpy shape for possible modification before closing
+    int64_t sizeSeekSize;         // (internal)
 
-    int32_t numColumns;
-    char **columnNames;
-    c2numpy_type *columnTypes;
+    int32_t numColumns;           // number of columns in the record array
+    char **columnNames;           // column names
+    c2numpy_type *columnTypes;    // column types
 
-    int32_t numRowsPerFile;
-    int32_t currentColumn;
-    int32_t currentRowInFile;
-    int32_t currentFileNumber;
-
+    int32_t numRowsPerFile;       // maximum number of rows per file
+    int32_t currentColumn;        // current column number
+    int32_t currentRowInFile;     // current row number in the current file
+    int32_t currentFileNumber;    // current file number
 } c2numpy_writer;
 
 const char *c2numpy_descr(c2numpy_type type) {
@@ -367,6 +366,7 @@ int c2numpy_row(c2numpy_writer *writer, ...) {
 
 int c2numpy_bool(c2numpy_writer *writer, int8_t data) {   // "bool" is just a byte
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_BOOL) return -1;
     fwrite(&data, sizeof(int8_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -374,6 +374,7 @@ int c2numpy_bool(c2numpy_writer *writer, int8_t data) {   // "bool" is just a by
 
 int c2numpy_int(c2numpy_writer *writer, int64_t data) {   // Numpy's default int is 64-bit
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_INT) return -1;
     fwrite(&data, sizeof(int64_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -381,6 +382,7 @@ int c2numpy_int(c2numpy_writer *writer, int64_t data) {   // Numpy's default int
 
 int c2numpy_intc(c2numpy_writer *writer, int data) {      // the built-in C int
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_INTC) return -1;
     fwrite(&data, sizeof(int), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -388,6 +390,7 @@ int c2numpy_intc(c2numpy_writer *writer, int data) {      // the built-in C int
 
 int c2numpy_intp(c2numpy_writer *writer, size_t data) {   // intp is Numpy's way of saying size_t
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_INTP) return -1;
     fwrite(&data, sizeof(size_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -395,6 +398,7 @@ int c2numpy_intp(c2numpy_writer *writer, size_t data) {   // intp is Numpy's way
 
 int c2numpy_int8(c2numpy_writer *writer, int8_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_INT8) return -1;
     fwrite(&data, sizeof(int8_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -402,6 +406,7 @@ int c2numpy_int8(c2numpy_writer *writer, int8_t data) {
 
 int c2numpy_int16(c2numpy_writer *writer, int16_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_INT16) return -1;
     fwrite(&data, sizeof(int16_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -409,6 +414,7 @@ int c2numpy_int16(c2numpy_writer *writer, int16_t data) {
 
 int c2numpy_int32(c2numpy_writer *writer, int32_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_INT32) return -1;
     fwrite(&data, sizeof(int32_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -416,6 +422,7 @@ int c2numpy_int32(c2numpy_writer *writer, int32_t data) {
 
 int c2numpy_int64(c2numpy_writer *writer, int64_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_INT64) return -1;
     fwrite(&data, sizeof(int64_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -423,6 +430,7 @@ int c2numpy_int64(c2numpy_writer *writer, int64_t data) {
 
 int c2numpy_uint8(c2numpy_writer *writer, uint8_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_UINT8) return -1;
     fwrite(&data, sizeof(uint8_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -430,6 +438,7 @@ int c2numpy_uint8(c2numpy_writer *writer, uint8_t data) {
 
 int c2numpy_uint16(c2numpy_writer *writer, uint16_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_UINT16) return -1;
     fwrite(&data, sizeof(uint16_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -437,6 +446,7 @@ int c2numpy_uint16(c2numpy_writer *writer, uint16_t data) {
 
 int c2numpy_uint32(c2numpy_writer *writer, uint32_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_UINT32) return -1;
     fwrite(&data, sizeof(uint32_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -444,6 +454,7 @@ int c2numpy_uint32(c2numpy_writer *writer, uint32_t data) {
 
 int c2numpy_uint64(c2numpy_writer *writer, uint64_t data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_UINT64) return -1;
     fwrite(&data, sizeof(uint64_t), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -451,6 +462,7 @@ int c2numpy_uint64(c2numpy_writer *writer, uint64_t data) {
 
 int c2numpy_float(c2numpy_writer *writer, double data) {   // Numpy's "float" is a double
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_FLOAT) return -1;
     fwrite(&data, sizeof(double), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -458,6 +470,7 @@ int c2numpy_float(c2numpy_writer *writer, double data) {   // Numpy's "float" is
 
 // int c2numpy_float16(c2numpy_writer *writer, ??? data) {   // how to do float16 in C?
 //     C2NUMPY_CHECK_ITEM
+//     if (writer->columnTypes[writer->currentColumn] != C2NUMPY_FLOAT16) return -1;
 //     fwrite(&data, sizeof(???), 1, writer->file);
 //     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
 //     C2NUMPY_INCREMENT_ITEM
@@ -465,6 +478,7 @@ int c2numpy_float(c2numpy_writer *writer, double data) {   // Numpy's "float" is
 
 int c2numpy_float32(c2numpy_writer *writer, float data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_FLOAT32) return -1;
     fwrite(&data, sizeof(float), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -472,6 +486,7 @@ int c2numpy_float32(c2numpy_writer *writer, float data) {
 
 int c2numpy_float64(c2numpy_writer *writer, double data) {
     C2NUMPY_CHECK_ITEM
+    if (writer->columnTypes[writer->currentColumn] != C2NUMPY_FLOAT64) return -1;
     fwrite(&data, sizeof(double), 1, writer->file);
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
     C2NUMPY_INCREMENT_ITEM
@@ -479,6 +494,7 @@ int c2numpy_float64(c2numpy_writer *writer, double data) {
 
 // int c2numpy_complex(c2numpy_writer *writer, ??? data) {    // how to do complex in C?
 //     C2NUMPY_CHECK_ITEM
+//     if (writer->columnTypes[writer->currentColumn] != C2NUMPY_COMPLEX) return -1;
 //     fwrite(&data, sizeof(???), 1, writer->file);
 //     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
 //     C2NUMPY_INCREMENT_ITEM
@@ -486,6 +502,7 @@ int c2numpy_float64(c2numpy_writer *writer, double data) {
 
 // int c2numpy_complex64(c2numpy_writer *writer, ??? data) {
 //     C2NUMPY_CHECK_ITEM
+//     if (writer->columnTypes[writer->currentColumn] != C2NUMPY_COMPLEX64) return -1;
 //     fwrite(&data, sizeof(???), 1, writer->file);
 //     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
 //     C2NUMPY_INCREMENT_ITEM
@@ -493,6 +510,7 @@ int c2numpy_float64(c2numpy_writer *writer, double data) {
 
 // int c2numpy_complex128(c2numpy_writer *writer, ??? data) {
 //     C2NUMPY_CHECK_ITEM
+//     if (writer->columnTypes[writer->currentColumn] != C2NUMPY_COMPLEX128) return -1;
 //     fwrite(&data, sizeof(???), 1, writer->file);
 //     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
 //     C2NUMPY_INCREMENT_ITEM

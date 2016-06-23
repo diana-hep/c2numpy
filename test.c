@@ -13,6 +13,9 @@ int main(int argc, char **argv) {
   c2numpy_addcolumn(&writer, "two", C2NUMPY_FLOAT64);
   c2numpy_addcolumn(&writer, "three", C2NUMPY_STRING + 5);
 
+  // completely optional: writing will open a file if not explicitly called
+  c2numpy_open(&writer);
+
   printf("row %d\n", writer.currentRowInFile);
   c2numpy_row(&writer, 1, 1.1, "ONE");
 
