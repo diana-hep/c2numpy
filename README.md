@@ -171,7 +171,7 @@ Open a file and write its header to disk. If not called, adding data will open t
 int c2numpy_row(c2numpy_writer *writer, ...)
 ```
 
-Varadic function writes a whole row at a time. If `writer->currentColumn` is out of sync, this will raise an error, so it is safe against column-misalignment. The varadic arguments are not type-safe, however: this has the same features and issues as `printf` in the standard library.
+Varadic function writes a whole row at a time. If `writer->currentColumn` is out of sync, this will return an error, so it is safe against column-misalignment. The varadic arguments are not type-safe, however: this has the same features and issues as `printf` in the standard library.
 
 **Returns:** 0 if successful, -1 otherwise.
 
