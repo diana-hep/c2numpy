@@ -20,7 +20,8 @@ For an example and testing, `test.c` is provided. Compile and run it with
 
 and view the results with
 
-    python -c "import numpy; print numpy.load(open('testout0.npy')); print numpy.load(open('testout1.npy'));"
+    python -c "import numpy; print numpy.load(open('testout0.npy'));"
+    python -c "import numpy; print numpy.load(open('testout1.npy'));"
 
 ## C API
 
