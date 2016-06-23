@@ -226,163 +226,196 @@ int c2numpy_open(c2numpy_writer *writer) {
 }
 
 int c2numpy_row(c2numpy_writer *writer, ...) {
-  va_list argp;
-  va_start(argp, writer);
+    if (writer->currentColumn != 0)
+        return -1;
 
-  for (int column = 0;  column < writer->numColumns;  ++column) {
-    switch (writer->columnTypes[column]) {
-      // FIXME: sort these types by popularity so that the most common types are the first to be resolved
+    va_list argp;
+    va_start(argp, writer);
 
-      case C2NUMPY_BOOL:   // "bool" is just a byte
-          *(int8_t*)writer->buffer = (int8_t)va_arg(argp, int);
-          fwrite((void*)writer->buffer, sizeof(int8_t), 1, writer->file);
-          break;
-      case C2NUMPY_INT:    // Numpy's default int is 64-bit
-          *(int64_t*)writer->buffer = va_arg(argp, int64_t);
-          fwrite((void*)writer->buffer, sizeof(int64_t), 1, writer->file);
-          break;
-      case C2NUMPY_INTC:   // the built-in C int
-          *(int*)writer->buffer = va_arg(argp, int);
-          fwrite((void*)writer->buffer, sizeof(int), 1, writer->file);
-          break;
-      case C2NUMPY_INTP:   // intp is Numpy's way of saying size_t
-          *(size_t*)writer->buffer = va_arg(argp, size_t);
-          fwrite((void*)writer->buffer, sizeof(size_t), 1, writer->file);
-          break;
-      case C2NUMPY_INT8:
-          *(int8_t*)writer->buffer = (int8_t)va_arg(argp, int);
-          fwrite((void*)writer->buffer, sizeof(int8_t), 1, writer->file);
-          break;
-      case C2NUMPY_INT16:
-          *(int16_t*)writer->buffer = (int16_t)va_arg(argp, int);
-          fwrite((void*)writer->buffer, sizeof(int16_t), 1, writer->file);
-          break;
-      case C2NUMPY_INT32:
-          *(int32_t*)writer->buffer = va_arg(argp, int32_t);
-          fwrite((void*)writer->buffer, sizeof(int32_t), 1, writer->file);
-          break;
-      case C2NUMPY_INT64:
-          *(int64_t*)writer->buffer = va_arg(argp, int64_t);
-          fwrite((void*)writer->buffer, sizeof(int64_t), 1, writer->file);
-          break;
-      case C2NUMPY_UINT8:
-          *(uint8_t*)writer->buffer = (uint8_t)va_arg(argp, int);
-          fwrite((void*)writer->buffer, sizeof(uint8_t), 1, writer->file);
-          break;
-      case C2NUMPY_UINT16:
-          *(uint16_t*)writer->buffer = (uint16_t)va_arg(argp, int);
-          fwrite((void*)writer->buffer, sizeof(uint16_t), 1, writer->file);
-          break;
-      case C2NUMPY_UINT32:
-          *(uint32_t*)writer->buffer = va_arg(argp, uint32_t);
-          fwrite((void*)writer->buffer, sizeof(uint32_t), 1, writer->file);
-          break;
-      case C2NUMPY_UINT64:
-          *(uint64_t*)writer->buffer = va_arg(argp, uint64_t);
-          fwrite((void*)writer->buffer, sizeof(uint64_t), 1, writer->file);
-          break;
-      case C2NUMPY_FLOAT:   // Numpy's "float" is a double
-          *(double*)writer->buffer = va_arg(argp, double);
-          fwrite((void*)writer->buffer, sizeof(double), 1, writer->file);
-          break;
-      // case C2NUMPY_FLOAT16:   // how to do float16 in C?
-      //     break;
-      case C2NUMPY_FLOAT32:
-          *(float*)writer->buffer = (float)va_arg(argp, double);
-          fwrite((void*)writer->buffer, sizeof(float), 1, writer->file);
-          break;
-      case C2NUMPY_FLOAT64:
-          *(double*)writer->buffer = va_arg(argp, double);
-          fwrite((void*)writer->buffer, sizeof(double), 1, writer->file);
-          break;
-      // case C2NUMPY_COMPLEX:    // how to do complex in C?
-      //     break;
-      // case C2NUMPY_COMPLEX64:
-      //     break;
-      // case C2NUMPY_COMPLEX128:
-      //     break;
-      default:
-          return -1;
+    for (int column = 0;  column < writer->numColumns;  ++column) {
+        writer->currentColumn += 1;
+
+        switch (writer->columnTypes[column]) {
+            // FIXME: sort these types by popularity so that the most common types are the first to be resolved
+
+            case C2NUMPY_BOOL:   // "bool" is just a byte
+                *(int8_t*)writer->buffer = (int8_t)va_arg(argp, int);
+                fwrite((void*)writer->buffer, sizeof(int8_t), 1, writer->file);
+                break;
+            case C2NUMPY_INT:    // Numpy's default int is 64-bit
+                *(int64_t*)writer->buffer = va_arg(argp, int64_t);
+                fwrite((void*)writer->buffer, sizeof(int64_t), 1, writer->file);
+                break;
+            case C2NUMPY_INTC:   // the built-in C int
+                *(int*)writer->buffer = va_arg(argp, int);
+                fwrite((void*)writer->buffer, sizeof(int), 1, writer->file);
+                break;
+            case C2NUMPY_INTP:   // intp is Numpy's way of saying size_t
+                *(size_t*)writer->buffer = va_arg(argp, size_t);
+                fwrite((void*)writer->buffer, sizeof(size_t), 1, writer->file);
+                break;
+            case C2NUMPY_INT8:
+                *(int8_t*)writer->buffer = (int8_t)va_arg(argp, int);
+                fwrite((void*)writer->buffer, sizeof(int8_t), 1, writer->file);
+                break;
+            case C2NUMPY_INT16:
+                *(int16_t*)writer->buffer = (int16_t)va_arg(argp, int);
+                fwrite((void*)writer->buffer, sizeof(int16_t), 1, writer->file);
+                break;
+            case C2NUMPY_INT32:
+                *(int32_t*)writer->buffer = va_arg(argp, int32_t);
+                fwrite((void*)writer->buffer, sizeof(int32_t), 1, writer->file);
+                break;
+            case C2NUMPY_INT64:
+                *(int64_t*)writer->buffer = va_arg(argp, int64_t);
+                fwrite((void*)writer->buffer, sizeof(int64_t), 1, writer->file);
+                break;
+            case C2NUMPY_UINT8:
+                *(uint8_t*)writer->buffer = (uint8_t)va_arg(argp, int);
+                fwrite((void*)writer->buffer, sizeof(uint8_t), 1, writer->file);
+                break;
+            case C2NUMPY_UINT16:
+                *(uint16_t*)writer->buffer = (uint16_t)va_arg(argp, int);
+                fwrite((void*)writer->buffer, sizeof(uint16_t), 1, writer->file);
+                break;
+            case C2NUMPY_UINT32:
+                *(uint32_t*)writer->buffer = va_arg(argp, uint32_t);
+                fwrite((void*)writer->buffer, sizeof(uint32_t), 1, writer->file);
+                break;
+            case C2NUMPY_UINT64:
+                *(uint64_t*)writer->buffer = va_arg(argp, uint64_t);
+                fwrite((void*)writer->buffer, sizeof(uint64_t), 1, writer->file);
+                break;
+            case C2NUMPY_FLOAT:   // Numpy's "float" is a double
+                *(double*)writer->buffer = va_arg(argp, double);
+                fwrite((void*)writer->buffer, sizeof(double), 1, writer->file);
+                break;
+                // case C2NUMPY_FLOAT16:   // how to do float16 in C?
+                //     break;
+            case C2NUMPY_FLOAT32:
+                *(float*)writer->buffer = (float)va_arg(argp, double);
+                fwrite((void*)writer->buffer, sizeof(float), 1, writer->file);
+                break;
+            case C2NUMPY_FLOAT64:
+                *(double*)writer->buffer = va_arg(argp, double);
+                fwrite((void*)writer->buffer, sizeof(double), 1, writer->file);
+                break;
+                // case C2NUMPY_COMPLEX:    // how to do complex in C?
+                //     break;
+                // case C2NUMPY_COMPLEX64:
+                //     break;
+                // case C2NUMPY_COMPLEX128:
+                //     break;
+            default:
+                return -1;
+        }
     }
-  }
 
-  va_end(argp);
-  return 0;
+    va_end(argp);
+
+    writer->currentColumn = 0;
+    writer->currentRowInFile += 1;
+
+    return 0;
+}
+
+#define C2NUMPY_INCREMENT_ITEM {                                                \
+    writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;   \
+    if (writer->currentColumn == 0) writer->currentRowInFile += 1;              \
 }
 
 int c2numpy_bool(c2numpy_writer *writer, int8_t data) {   // "bool" is just a byte
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(int8_t), 1, writer->file);
 }
 
 int c2numpy_int(c2numpy_writer *writer, int64_t data) {   // Numpy's default int is 64-bit
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(int64_t), 1, writer->file);
 }
 
 int c2numpy_intc(c2numpy_writer *writer, int data) {      // the built-in C int
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(int), 1, writer->file);
 }
 
 int c2numpy_intp(c2numpy_writer *writer, size_t data) {   // intp is Numpy's way of saying size_t
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(size_t), 1, writer->file);
 }
 
 int c2numpy_int8(c2numpy_writer *writer, int8_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(int8_t), 1, writer->file);
 }
 
 int c2numpy_int16(c2numpy_writer *writer, int16_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(int16_t), 1, writer->file);
 }
 
 int c2numpy_int32(c2numpy_writer *writer, int32_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(int32_t), 1, writer->file);
 }
 
 int c2numpy_int64(c2numpy_writer *writer, int64_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(int64_t), 1, writer->file);
 }
 
 int c2numpy_uint8(c2numpy_writer *writer, uint8_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(uint8_t), 1, writer->file);
 }
 
 int c2numpy_uint16(c2numpy_writer *writer, uint16_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(uint16_t), 1, writer->file);
 }
 
 int c2numpy_uint32(c2numpy_writer *writer, uint32_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(uint32_t), 1, writer->file);
 }
 
 int c2numpy_uint64(c2numpy_writer *writer, uint64_t data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(uint64_t), 1, writer->file);
 }
 
 int c2numpy_float(c2numpy_writer *writer, double data) {   // Numpy's "float" is a double
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(double), 1, writer->file);
 }
 
 // int c2numpy_float16(c2numpy_writer *writer, ??? data) {   // how to do float16 in C?
+//     C2NUMPY_INCREMENT_ITEM
 //     fwrite(&data, sizeof(???), 1, writer->file);
 // }
 
 int c2numpy_float32(c2numpy_writer *writer, float data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(float), 1, writer->file);
 }
 
 int c2numpy_float64(c2numpy_writer *writer, double data) {
+    C2NUMPY_INCREMENT_ITEM
     fwrite(&data, sizeof(double), 1, writer->file);
 }
 
 // int c2numpy_complex(c2numpy_writer *writer, ??? data) {    // how to do complex in C?
+//     C2NUMPY_INCREMENT_ITEM
 //     fwrite(&data, sizeof(???), 1, writer->file);
 // }
 
 // int c2numpy_complex64(c2numpy_writer *writer, ??? data) {
+//     C2NUMPY_INCREMENT_ITEM
 //     fwrite(&data, sizeof(???), 1, writer->file);
 // }
 
 // int c2numpy_complex128(c2numpy_writer *writer, ??? data) {
+//     C2NUMPY_INCREMENT_ITEM
 //     fwrite(&data, sizeof(???), 1, writer->file);
 // }
 
