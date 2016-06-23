@@ -31,8 +31,28 @@ typedef enum {
     C2NUMPY_END          = 255   // ensure that c2numpy_type is at least a byte
 } c2numpy_type;
 
+// a Numpy writer object
+typedef struct {
+    char buffer[16];     // overwritten frequently; put it where the memory is aligned
+
+    FILE *file;
+    char *outputFilePrefix;
+    int64_t sizeSeekPosition;
+    int64_t sizeSeekSize;
+
+    int32_t numColumns;
+    char **columnNames;
+    c2numpy_type *columnTypes;
+
+    int32_t numRowsPerFile;
+    int32_t currentColumn;
+    int32_t currentRowInFile;
+    int32_t currentFileNumber;
+
+} c2numpy_writer;
+
 const char *c2numpy_descr(c2numpy_type type) {
-    // FIXME: all of the "<" signs should be system-dependent (little endian)
+    // FIXME: all of the "<" signs should be system-dependent (they mean little endian)
     static const char *c2numpy_bool = "|b1";
     static const char *c2numpy_int = "<i8";
     static const char *c2numpy_intc = "<i4";   // FIXME: should be system-dependent
@@ -52,6 +72,8 @@ const char *c2numpy_descr(c2numpy_type type) {
     static const char *c2numpy_complex = "<c16";
     static const char *c2numpy_complex64 = "<c8";
     static const char *c2numpy_complex128 = "<c16";
+
+    static const char *c2numpy_str[155] = {"|S0", "|S1", "|S2", "|S3", "|S4", "|S5", "|S6", "|S7", "|S8", "|S9", "|S10", "|S11", "|S12", "|S13", "|S14", "|S15", "|S16", "|S17", "|S18", "|S19", "|S20", "|S21", "|S22", "|S23", "|S24", "|S25", "|S26", "|S27", "|S28", "|S29", "|S30", "|S31", "|S32", "|S33", "|S34", "|S35", "|S36", "|S37", "|S38", "|S39", "|S40", "|S41", "|S42", "|S43", "|S44", "|S45", "|S46", "|S47", "|S48", "|S49", "|S50", "|S51", "|S52", "|S53", "|S54", "|S55", "|S56", "|S57", "|S58", "|S59", "|S60", "|S61", "|S62", "|S63", "|S64", "|S65", "|S66", "|S67", "|S68", "|S69", "|S70", "|S71", "|S72", "|S73", "|S74", "|S75", "|S76", "|S77", "|S78", "|S79", "|S80", "|S81", "|S82", "|S83", "|S84", "|S85", "|S86", "|S87", "|S88", "|S89", "|S90", "|S91", "|S92", "|S93", "|S94", "|S95", "|S96", "|S97", "|S98", "|S99", "|S100", "|S101", "|S102", "|S103", "|S104", "|S105", "|S106", "|S107", "|S108", "|S109", "|S110", "|S111", "|S112", "|S113", "|S114", "|S115", "|S116", "|S117", "|S118", "|S119", "|S120", "|S121", "|S122", "|S123", "|S124", "|S125", "|S126", "|S127", "|S128", "|S129", "|S130", "|S131", "|S132", "|S133", "|S134", "|S135", "|S136", "|S137", "|S138", "|S139", "|S140", "|S141", "|S142", "|S143", "|S144", "|S145", "|S146", "|S147", "|S148", "|S149", "|S150", "|S151", "|S152", "|S153", "|S154"};
 
     switch (type) {
       case C2NUMPY_BOOL:
@@ -92,28 +114,13 @@ const char *c2numpy_descr(c2numpy_type type) {
           return c2numpy_complex64;
       case C2NUMPY_COMPLEX128:
           return c2numpy_complex128;
-      // FIXME: implement fixed-width strings
+      default:
+          if (0 < type - C2NUMPY_STRING  &&  type - C2NUMPY_STRING < 155)
+              return c2numpy_str[type - C2NUMPY_STRING];
     }
+
+    return NULL;
 }
-
-typedef struct {
-    char buffer[16];   // overwritten frequently; but it where the memory alignment is
-
-    FILE *file;
-    char *outputFilePrefix;
-    int64_t sizeSeekPosition;
-    int64_t sizeSeekSize;
-
-    int32_t numColumns;
-    char **columnNames;
-    c2numpy_type *columnTypes;
-
-    int32_t numRowsPerFile;
-    int32_t currentColumn;
-    int32_t currentRowInFile;
-    int32_t currentFileNumber;
-
-} c2numpy_writer;
 
 int c2numpy_init(c2numpy_writer *writer, const char *outputFilePrefix, int32_t numRowsPerFile) {
     writer->file = NULL;
@@ -270,6 +277,8 @@ int c2numpy_row(c2numpy_writer *writer, ...) {
     for (int column = 0;  column < writer->numColumns;  ++column) {
         writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
 
+        int stringlength = writer->columnTypes[column] - C2NUMPY_STRING;
+
         switch (writer->columnTypes[column]) {
             // FIXME: sort these types by popularity so that the most common types are the first to be resolved
 
@@ -342,7 +351,12 @@ int c2numpy_row(c2numpy_writer *writer, ...) {
                 // case C2NUMPY_COMPLEX128:
                 //     break;
             default:
-                return -1;
+                if (0 < stringlength  &&  stringlength < 155) {
+                    const char *string = va_arg(argp, const char *);
+                    fwrite(string, 1, stringlength, writer->file);
+                }
+                else
+                    return -1;
         }
     }
 
@@ -484,6 +498,19 @@ int c2numpy_float64(c2numpy_writer *writer, double data) {
 //     C2NUMPY_INCREMENT_ITEM
 // }
 
+int c2numpy_string(c2numpy_writer *writer, const char *string) {
+    C2NUMPY_CHECK_ITEM
+
+    int stringlength = writer->columnTypes[writer->currentColumn] - C2NUMPY_STRING;
+    if (0 < stringlength  &&  stringlength < 155)
+        fwrite(string, 1, stringlength, writer->file);
+    else
+        return -1;
+    writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;
+
+    C2NUMPY_INCREMENT_ITEM
+}
+
 int c2numpy_close(c2numpy_writer *writer) {
     if (writer->file != NULL) {
         // we wrote fewer rows than we promised
@@ -509,4 +536,4 @@ int c2numpy_close(c2numpy_writer *writer) {
     free(writer->columnTypes);
 }
 
-#endif /* C2NUMPY */
+#endif // C2NUMPY
