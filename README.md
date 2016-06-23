@@ -163,6 +163,8 @@ int c2numpy_open(c2numpy_writer *writer);
 
 Open a file and write its header to disk. If not called, adding data will open the file, but you might want to call it immediately to learn about I/O errors early.
 
+**Returns:** 0 if successful and -1 otherwise.
+
 ### Write a row of data in one call: `c2numpy_row`
 
 ```c
