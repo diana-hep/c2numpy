@@ -206,7 +206,7 @@ int c2numpy_string(c2numpy_writer *writer, const char *data);
 
 **Returns:** 0 if successful and -1 otherwise.
 
-`c2numpy_string` **only writes** the string `data`, so you are responsible for deleting the original if necessary. The full width of the string is written every time, even if this means writing uninitialized data past a termination character or truncating the string before its termination character.
+The string form, `c2numpy_string`, **only writes** the string `data`, so you are responsible for deleting the original if necessary. The full width of the string is written every time, even if this means writing uninitialized data past a termination character or truncating the string before its termination character.
 
 ### Required close file: `c2numpy_close`
 
