@@ -4,9 +4,11 @@ Write Numpy (.npy) files from C or C++ for analysis in [Numpy](http://www.numpy.
 
 Fills a collection of .npy files with a maximum size, a common prefix and a rotating number (like rotating log files). Each file contains one [structured array](http://docs.scipy.org/doc/numpy/user/basics.rec.html), consisting of named, typed columns (numbers and fixed-size strings) and many rows. In Python, you access rows and columns with string and integer indexing:
 
-    myarray["column1"]   # one column, all rows
-    myarray[3:5]         # all columns, slice of rows
-                         # etc.
+```python
+myarray["column1"]   # one column, all rows
+myarray[3:5]         # all columns, slice of rows
+                     # etc.
+```
 
 This project does not support _reading_ of Numpy files in C.
 
@@ -176,7 +178,7 @@ The following suite of functions support writing one item (row and column) at a 
     // int c2numpy_complex128(c2numpy_writer *writer, ??? data);
     int c2numpy_string(c2numpy_writer *writer, const char *data);
 
-All of the above return 0 if successful and -1 otherwise.
+**Returns:** 0 if successful and -1 otherwise.
 
 `c2numpy_string` **only writes** the string `data`, so you are responsible for deleting the original if necessary.
 
@@ -185,6 +187,8 @@ All of the above return 0 if successful and -1 otherwise.
     int c2numpy_close(c2numpy_writer *writer);
 
 If you do not explicitly close the writer, your last file may be corrupted. Be sure to do this after your loop over data.
+
+**Returns:** 0 if successful and -1 otherwise.
 
 ## C++ example and C++ API
 
@@ -197,4 +201,5 @@ Not written yet (will wrap the C functions with C++ class structure using [__cpl
    * System independence (currently assumes little endian with 32-bit `int` and 64-bit `size_t`).
    * Faster guessing of header size and column types.
    * Float16 and complex numbers.
+   * Distinct return values for different errors and documentation of those errors.
    * Optional C++ API.
