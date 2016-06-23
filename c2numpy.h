@@ -229,6 +229,12 @@ int c2numpy_row(c2numpy_writer *writer, ...) {
     if (writer->currentColumn != 0)
         return -1;
 
+    if (writer->file == NULL) {
+        int status = c2numpy_open(writer);
+        if (status != 0)
+            return status;
+    }
+
     va_list argp;
     va_start(argp, writer);
 
@@ -315,6 +321,12 @@ int c2numpy_row(c2numpy_writer *writer, ...) {
 
     writer->currentColumn = 0;
     writer->currentRowInFile += 1;
+    if (writer->currentRowInFile == writer->numRowsPerFile) {
+        fclose(writer->file);
+        writer->file = NULL;
+        writer->currentRowInFile = 0;
+        writer->currentFileNumber += 1;
+    }
 
     return 0;
 }
@@ -420,7 +432,8 @@ int c2numpy_float64(c2numpy_writer *writer, double data) {
 // }
 
 int c2numpy_close(c2numpy_writer *writer) {
-    fclose(writer->file);
+    if (writer->file != NULL)
+        fclose(writer->file);
     free(writer->outputFilePrefix);
 
     for (int column = 0;  column < writer->numColumns;  ++column)
