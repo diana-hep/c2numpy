@@ -97,26 +97,34 @@ const char *c2numpy_descr(c2numpy_type type) {
 }
 
 typedef struct {
-    char buffer[16];
+    char buffer[16];   // overwritten frequently; but it where the memory alignment is
+
     FILE *file;
+    char *outputFilePrefix;
+
     int32_t numColumns;
     char **columnNames;
     c2numpy_type *columnTypes;
-    char *outputFilePrefix;
+
     int32_t numRowsPerFile;
+    int32_t currentColumn;
+    int32_t currentRowInFile;
     int32_t currentFileNumber;
+
 } c2numpy_writer;
 
 int c2numpy_init(c2numpy_writer *writer, const char *outputFilePrefix, int32_t numRowsPerFile) {
     writer->file = NULL;
+    writer->outputFilePrefix = (char*)malloc(strlen(outputFilePrefix) + 1);
+    strcpy(writer->outputFilePrefix, outputFilePrefix);
 
     writer->numColumns = 0;
     writer->columnNames = NULL;
     writer->columnTypes = NULL;
 
-    writer->outputFilePrefix = (char*)malloc(strlen(outputFilePrefix) + 1);
-    strcpy(writer->outputFilePrefix, outputFilePrefix);
     writer->numRowsPerFile = numRowsPerFile;
+    writer->currentColumn = 0;
+    writer->currentRowInFile = 0;
     writer->currentFileNumber = 0;
 
     return 0;
@@ -223,6 +231,8 @@ int c2numpy_row(c2numpy_writer *writer, ...) {
 
   for (int column = 0;  column < writer->numColumns;  ++column) {
     switch (writer->columnTypes[column]) {
+      // FIXME: sort these types by popularity so that the most common types are the first to be resolved
+
       case C2NUMPY_BOOL:   // "bool" is just a byte
           *(int8_t*)writer->buffer = (int8_t)va_arg(argp, int);
           fwrite((void*)writer->buffer, sizeof(int8_t), 1, writer->file);
@@ -378,7 +388,12 @@ int c2numpy_float64(c2numpy_writer *writer, double data) {
 
 int c2numpy_close(c2numpy_writer *writer) {
     fclose(writer->file);
-    // FIXME: free all the memory that was allocated in c2numpy_writer.
+    free(writer->outputFilePrefix);
+
+    for (int column = 0;  column < writer->numColumns;  ++column)
+        free(writer->columnNames[column]);
+    free(writer->columnNames);
+    free(writer->columnTypes);
 }
 
 #endif /* C2NUMPY */
