@@ -163,7 +163,7 @@ This is the second function you should call on a new writer. Call it once for ea
 int c2numpy_open(c2numpy_writer *writer);
 ```
 
-Open a file and write its header to disk. If you don't call it explicitly, writing data will automatically open the first file, but you might want to call it before an expensive initialization to learn about I/O errors early.
+Open a file and write its header to disk. If you don't call this explicitly, writing data will automatically open the first file. You might want to call it before an expensive initialization to learn about I/O errors early, though.
 
 **Returns:** 0 if successful and -1 otherwise.
 
