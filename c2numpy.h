@@ -31,29 +31,28 @@ typedef enum {
     C2NUMPY_END          = 255   // ensure that c2numpy_type is at least a byte
 } c2numpy_type;
 
-// FIXME: all of the "<" signs should be system-dependent (little endian)
-const char *c2numpy_bool = "|b1";
-const char *c2numpy_int = "<i8";
-const char *c2numpy_intc = "<i4";   // FIXME: should be system-dependent
-const char *c2numpy_intp = "<i8";   // FIXME: should be system-dependent
-const char *c2numpy_int8 = "|i1";
-const char *c2numpy_int16 = "<i2";
-const char *c2numpy_int32 = "<i4";
-const char *c2numpy_int64 = "<i8";
-const char *c2numpy_uint8 = "|u1";
-const char *c2numpy_uint16 = "<u2";
-const char *c2numpy_uint32 = "<u4";
-const char *c2numpy_uint64 = "<u8";
-const char *c2numpy_float = "<f8";
-const char *c2numpy_float16 = "<f2";
-const char *c2numpy_float32 = "<f4";
-const char *c2numpy_float64 = "<f8";
-const char *c2numpy_complex = "<c16";
-const char *c2numpy_complex64 = "<c8";
-const char *c2numpy_complex128 = "<c16";
-
-// FIXME: This is where you can put in system dependence.
 const char *c2numpy_descr(c2numpy_type type) {
+    // FIXME: all of the "<" signs should be system-dependent (little endian)
+    static const char *c2numpy_bool = "|b1";
+    static const char *c2numpy_int = "<i8";
+    static const char *c2numpy_intc = "<i4";   // FIXME: should be system-dependent
+    static const char *c2numpy_intp = "<i8";   // FIXME: should be system-dependent
+    static const char *c2numpy_int8 = "|i1";
+    static const char *c2numpy_int16 = "<i2";
+    static const char *c2numpy_int32 = "<i4";
+    static const char *c2numpy_int64 = "<i8";
+    static const char *c2numpy_uint8 = "|u1";
+    static const char *c2numpy_uint16 = "<u2";
+    static const char *c2numpy_uint32 = "<u4";
+    static const char *c2numpy_uint64 = "<u8";
+    static const char *c2numpy_float = "<f8";
+    static const char *c2numpy_float16 = "<f2";
+    static const char *c2numpy_float32 = "<f4";
+    static const char *c2numpy_float64 = "<f8";
+    static const char *c2numpy_complex = "<c16";
+    static const char *c2numpy_complex64 = "<c8";
+    static const char *c2numpy_complex128 = "<c16";
+
     switch (type) {
       case C2NUMPY_BOOL:
           return c2numpy_bool;
@@ -218,7 +217,7 @@ int c2numpy_open(c2numpy_writer *writer) {
     return -1;
 }
 
-int c2numpy_fill(c2numpy_writer *writer, ...) {
+int c2numpy_row(c2numpy_writer *writer, ...) {
   va_list argp;
   va_start(argp, writer);
 
@@ -300,6 +299,82 @@ int c2numpy_fill(c2numpy_writer *writer, ...) {
   va_end(argp);
   return 0;
 }
+
+int c2numpy_bool(c2numpy_writer *writer, int8_t data) {   // "bool" is just a byte
+    fwrite(&data, sizeof(int8_t), 1, writer->file);
+}
+
+int c2numpy_int(c2numpy_writer *writer, int64_t data) {   // Numpy's default int is 64-bit
+    fwrite(&data, sizeof(int64_t), 1, writer->file);
+}
+
+int c2numpy_intc(c2numpy_writer *writer, int data) {      // the built-in C int
+    fwrite(&data, sizeof(int), 1, writer->file);
+}
+
+int c2numpy_intp(c2numpy_writer *writer, size_t data) {   // intp is Numpy's way of saying size_t
+    fwrite(&data, sizeof(size_t), 1, writer->file);
+}
+
+int c2numpy_int8(c2numpy_writer *writer, int8_t data) {
+    fwrite(&data, sizeof(int8_t), 1, writer->file);
+}
+
+int c2numpy_int16(c2numpy_writer *writer, int16_t data) {
+    fwrite(&data, sizeof(int16_t), 1, writer->file);
+}
+
+int c2numpy_int32(c2numpy_writer *writer, int32_t data) {
+    fwrite(&data, sizeof(int32_t), 1, writer->file);
+}
+
+int c2numpy_int64(c2numpy_writer *writer, int64_t data) {
+    fwrite(&data, sizeof(int64_t), 1, writer->file);
+}
+
+int c2numpy_uint8(c2numpy_writer *writer, uint8_t data) {
+    fwrite(&data, sizeof(uint8_t), 1, writer->file);
+}
+
+int c2numpy_uint16(c2numpy_writer *writer, uint16_t data) {
+    fwrite(&data, sizeof(uint16_t), 1, writer->file);
+}
+
+int c2numpy_uint32(c2numpy_writer *writer, uint32_t data) {
+    fwrite(&data, sizeof(uint32_t), 1, writer->file);
+}
+
+int c2numpy_uint64(c2numpy_writer *writer, uint64_t data) {
+    fwrite(&data, sizeof(uint64_t), 1, writer->file);
+}
+
+int c2numpy_float(c2numpy_writer *writer, double data) {   // Numpy's "float" is a double
+    fwrite(&data, sizeof(double), 1, writer->file);
+}
+
+// int c2numpy_float16(c2numpy_writer *writer, ??? data) {   // how to do float16 in C?
+//     fwrite(&data, sizeof(???), 1, writer->file);
+// }
+
+int c2numpy_float32(c2numpy_writer *writer, float data) {
+    fwrite(&data, sizeof(float), 1, writer->file);
+}
+
+int c2numpy_float64(c2numpy_writer *writer, double data) {
+    fwrite(&data, sizeof(double), 1, writer->file);
+}
+
+// int c2numpy_complex(c2numpy_writer *writer, ??? data) {    // how to do complex in C?
+//     fwrite(&data, sizeof(???), 1, writer->file);
+// }
+
+// int c2numpy_complex64(c2numpy_writer *writer, ??? data) {
+//     fwrite(&data, sizeof(???), 1, writer->file);
+// }
+
+// int c2numpy_complex128(c2numpy_writer *writer, ??? data) {
+//     fwrite(&data, sizeof(???), 1, writer->file);
+// }
 
 int c2numpy_close(c2numpy_writer *writer) {
     fclose(writer->file);
