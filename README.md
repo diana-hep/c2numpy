@@ -88,11 +88,11 @@ Not currently supported:
 A writer contains the following fields. Some of them are internal, and all of them should be treated as read-only. Use the associated functions to manipulate.
 
     typedef struct {
-        char buffer[16];              // used for temporary copies in c2numpy_row
+        char buffer[16];              // (internal) used for temporary copies in c2numpy_row
 
         FILE *file;                   // output file handle
         char *outputFilePrefix;       // output file name, not including the rotating number and .npy
-        int64_t sizeSeekPosition;     // (internal) keep track of Numpy shape for possible modification before closing
+        int64_t sizeSeekPosition;     // (internal) keep track of number of rows to modify before closing
         int64_t sizeSeekSize;         // (internal)
 
         int32_t numColumns;           // number of columns in the record array
