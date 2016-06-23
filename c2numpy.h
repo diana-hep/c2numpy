@@ -153,47 +153,69 @@ int c2numpy_open(c2numpy_writer *writer) {
     sprintf(fileName, "%s%d.npy", writer->outputFilePrefix, writer->currentFileNumber);
     writer->file = fopen(fileName, "wb");
 
-    // FIXME: loop over multiples of 128, attempting to fit the header in each, break when it works.
-    // FIXME: if descrSize must be greater than 65535, switch to version 2.0
-    uint16_t headerSize = 128;
-    char *header = (char*)malloc(headerSize + 1);
-    uint16_t descrSize = headerSize - 10;
+    // FIXME: better initial guess about header size before going in 128 byte increments
+    char *header = NULL;
+    for (uint16_t headerSize = 128;  headerSize <= 4294967295;  headerSize += 128) {
+        if (header != NULL) free(header);
+        header = (char*)malloc(headerSize + 1);
 
-    header[0] = 147;                    // magic
-    header[1] = 'N';
-    header[2] = 'U';
-    header[3] = 'M';
-    header[4] = 'P';
-    header[5] = 'Y';
-    header[6] = 1;                      // format version 1.0
-    header[7] = 0;
-    *(uint16_t*)(header + 8) = descrSize;   // version 1.0 has a 16-byte descrSize
-
-    int offset = headerSize - descrSize;
-    offset += sprintf((header + offset), "{'descr': [");
-
-    for (int column = 0;  column < writer->numColumns;  ++column) {
-        offset += sprintf((header + offset), "('%s', '%s')",
-                          writer->columnNames[column],
-                          c2numpy_descr(writer->columnTypes[column]));
-        if (column < writer->numColumns - 1)
-            offset += sprintf((header + offset), ", ");
-    }
-
-    offset += sprintf((header + offset), "], 'fortran_order': False, 'shape': (%d,), }", writer->numRowsPerFile);
-
-    while (offset < headerSize) {
-        if (offset < headerSize - 1)
-            header[offset] = ' ';
+        char version1 = headerSize <= 65535;
+        uint16_t descrSize;
+        if (version1)
+            descrSize = headerSize - 10;
         else
-            header[offset] = '\n';
-        offset += 1;
+            descrSize = headerSize - 12;
+
+        header[0] = 147;                            // magic
+        header[1] = 'N';
+        header[2] = 'U';
+        header[3] = 'M';
+        header[4] = 'P';
+        header[5] = 'Y';
+        if (version1) {
+            header[6] = 1;                          // format version 1.0
+            header[7] = 0;
+            *(uint16_t*)(header + 8) = descrSize;   // version 1.0 has a 16-byte descrSize
+        }
+        else {
+            header[6] = 2;                          // format version 2.0
+            header[7] = 0;
+            *(uint32_t*)(header + 8) = descrSize;   // version 2.0 has a 32-byte descrSize
+        }
+
+        int offset = headerSize - descrSize;
+        offset += snprintf((header + offset), headerSize - offset + 1, "{'descr': [");
+        if (offset >= headerSize) continue;
+
+        for (int column = 0;  column < writer->numColumns;  ++column) {
+            offset += snprintf((header + offset), headerSize - offset + 1, "('%s', '%s')",
+                              writer->columnNames[column],
+                              c2numpy_descr(writer->columnTypes[column]));
+            if (offset >= headerSize) continue;
+
+            if (column < writer->numColumns - 1)
+                offset += snprintf((header + offset), headerSize - offset + 1, ", ");
+            if (offset >= headerSize) continue;
+        }
+
+        offset += snprintf((header + offset), headerSize - offset + 1, "], 'fortran_order': False, 'shape': (%d,), }", writer->numRowsPerFile);
+        if (offset >= headerSize) continue;
+
+        while (offset < headerSize) {
+            if (offset < headerSize - 1)
+                header[offset] = ' ';
+            else
+                header[offset] = '\n';
+            offset += 1;
+        }
+        header[headerSize] = 0;
+
+        fwrite(header, 1, headerSize, writer->file);
+
+        return 0;
     }
-    header[headerSize] = 0;
 
-    fwrite(header, 1, headerSize, writer->file);
-
-    return 0;
+    return -1;
 }
 
 int c2numpy_fill(c2numpy_writer *writer, ...) {
