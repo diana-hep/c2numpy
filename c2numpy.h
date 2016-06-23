@@ -516,12 +516,12 @@ int c2numpy_float64(c2numpy_writer *writer, double data) {
 //     C2NUMPY_INCREMENT_ITEM
 // }
 
-int c2numpy_string(c2numpy_writer *writer, const char *string) {
+int c2numpy_string(c2numpy_writer *writer, const char *data) {
     C2NUMPY_CHECK_ITEM
 
     int stringlength = writer->columnTypes[writer->currentColumn] - C2NUMPY_STRING;
     if (0 < stringlength  &&  stringlength < 155)
-        fwrite(string, 1, stringlength, writer->file);
+        fwrite(data, 1, stringlength, writer->file);
     else
         return -1;
     writer->currentColumn = (writer->currentColumn + 1) % writer->numColumns;

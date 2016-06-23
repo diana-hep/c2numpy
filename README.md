@@ -122,6 +122,8 @@ This is the first function you should call on a new writer. After this, call `c2
    * `numRowsPerFile`: number of rows to write before starting a new file.
    * **returns:** 0 if successful, -1 otherwise
 
+**Copies** the `outputFilePrefix`, so you are responsible for deleting the original if necessary.
+
 ### Add a column to the writer: `c2numpy_addcolumn`
 
     int c2numpy_addcolumn(c2numpy_writer *writer, const char *name, c2numpy_type type);
@@ -132,6 +134,8 @@ This is the second function you should call on a new writer. Call it once for ea
    * `name`: the name of the column to add.
    * `type`: the type of the column to add (see enumeration constants above).
    * **returns:** 0 if successful, -1 otherwise
+
+**Copies** the `name`, so you are responsible for deleting the original if necessary.
 
 ### Optional open file: `c2numpy_open`
 
@@ -168,7 +172,11 @@ The following suite of functions support writing one item (row and column) at a 
     // int c2numpy_complex(c2numpy_writer *writer, ??? data);     // how to do complex in C?
     // int c2numpy_complex64(c2numpy_writer *writer, ??? data);
     // int c2numpy_complex128(c2numpy_writer *writer, ??? data);
-    int c2numpy_string(c2numpy_writer *writer, const char *string);
+    int c2numpy_string(c2numpy_writer *writer, const char *data);
+
+All of the above return 0 upon success and -1 upon failure.
+
+`c2numpy_string` **only writes** the string `data`, so you are responsible for deleting the original if necessary.
 
 ### Required close file: `c2numpy_close`
 
