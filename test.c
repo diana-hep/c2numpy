@@ -38,8 +38,6 @@ int main(int argc, char **argv) {
   printf("row %d\n", writer.currentRowInFile);
   c2numpy_row(&writer, 5, 5.5, 5);
 
-
-
   printf("row %d\n", writer.currentRowInFile);
   c2numpy_row(&writer, 6, 6.6, 6);
 
@@ -53,20 +51,6 @@ int main(int argc, char **argv) {
   c2numpy_float64(&writer, 8.8);
   printf("  col %d\n", writer.currentColumn);
   c2numpy_intc(&writer, 8);
-
-  printf("row %d by separate calls\n", writer.currentRowInFile);
-  printf("  col %d\n", writer.currentColumn);
-  c2numpy_intc(&writer, 9);
-  printf("  col %d\n", writer.currentColumn);
-  c2numpy_float64(&writer, 9.9);
-  printf("  col %d\n", writer.currentColumn);
-  c2numpy_intc(&writer, 9);
-
-  printf("row %d\n", writer.currentRowInFile);
-  c2numpy_row(&writer, 10, 10.01, 10);
-
-
-
 
   printf("close\n");
   c2numpy_close(&writer);
