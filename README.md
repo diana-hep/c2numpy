@@ -85,6 +85,8 @@ C2NUMPY_COMPLEX128  // Complex number, represented by two 64-bit floats (real an
 C2NUMPY_STRING      = 100  // strings are C2NUMPY_STRING + their fixed size (up to 155)
 ```
 
+Strings are fixed-width only, so the type for strings with 12 characters is `C2NUMPY_STRING + 12`.
+
 Not currently supported:
 
    * `C2NUMPY_FLOAT16`
@@ -204,7 +206,7 @@ int c2numpy_string(c2numpy_writer *writer, const char *data);
 
 **Returns:** 0 if successful and -1 otherwise.
 
-`c2numpy_string` **only writes** the string `data`, so you are responsible for deleting the original if necessary.
+`c2numpy_string` **only writes** the string `data`, so you are responsible for deleting the original if necessary. The full width of the string is written every time, even if this means writing uninitialized data past a termination character or truncating the string before its termination character.
 
 ### Required close file: `c2numpy_close`
 
