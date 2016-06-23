@@ -149,6 +149,8 @@ Open a file and write its header to disk. If not called, adding data will open t
 
 Varadic function writes a whole row at a time. If `writer->currentColumn` is out of sync, this will raise an error, so it is safe against column-misalignment. The varadic arguments are not type-safe, however: this has the same features and issues as `printf` in the standard library.
 
+**Returns:** 0 if successful, -1 otherwise.
+
 ### Write an item of data: `c2numpy_*`
 
 The following suite of functions support writing one item (row and column) at a time. They check the requested data type against the expected data type for the current column, but cannot prevent column-misalignment if all data types are the same.
@@ -174,7 +176,7 @@ The following suite of functions support writing one item (row and column) at a 
     // int c2numpy_complex128(c2numpy_writer *writer, ??? data);
     int c2numpy_string(c2numpy_writer *writer, const char *data);
 
-All of the above return 0 upon success and -1 upon failure.
+All of the above return 0 if successful and -1 otherwise.
 
 `c2numpy_string` **only writes** the string `data`, so you are responsible for deleting the original if necessary.
 
