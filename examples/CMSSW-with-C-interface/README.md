@@ -146,4 +146,32 @@ Index([u'pt', u'eta', u'phi', u'dxy', u'dz'], dtype='object')
 
 ## Ready for Machine Learning (ML) challenge
 
-TODO
+Now, let's use our dataframe for ML studies, such as classification problem.
+To do that we need a *labels* which will be used by ML classifier.
+For simplicity we'll randomly generate it:
+
+```python
+>>> import random
+>>> # we have 1000 rows, therefore we need 1000 labels
+>>> labels = [random.randint(0,1) for _ in range(1000)]
+```
+
+At this step we're ready to apply any ML techniques and for demonstration
+purposes we'll use well-known python [scikit-learn library](http://scikit-learn.org/).
+
+```python
+>>> # import scikit learn RandomForest classifier
+>>> from sklearn.ensemble import RandomForestClassifier
+>>> from sklearn.cross_validation import train_test_split
+
+>>> # split data into train/validation/test sets
+>>> x_train, x_rest, y_train, y_rest = train_test_split(df, labels, test_size=0.3, random_state=12345)
+
+>>> # train the model and generate predictions
+>>> fit = clf.fit(x_train, y_train)
+>>> predictions = fit.predict(x_rest)
+```
+
+At this step our predictions are ready. Of course, in this simple example
+they're meaningless, but this example shows full pipeline how someone
+can go from CMSSW root based data into ML pipeline in very simple steps.
