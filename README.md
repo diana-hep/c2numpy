@@ -42,10 +42,14 @@ c2numpy_addcolumn(&writer, "two", C2NUMPY_FLOAT64);
 c2numpy_addcolumn(&writer, "three", C2NUMPY_STRING + 5);
 
 // first row
-c2numpy_row(&writer, 1, 1.1, "ONE");
+c2numpy_intc(&writer, 1);
+c2numpy_float64(&writer, 1.1);
+c2numpy_string(&writer, "ONE");
 
 // second row
-c2numpy_row(&writer, 2, 2.2, "TWO");
+c2numpy_intc(&writer, 2);
+c2numpy_float64(&writer, 2.2);
+c2numpy_string(&writer, "TWO");
 
 // third row
 c2numpy_intc(&writer, 3);
@@ -167,19 +171,9 @@ Open a file and write its header to disk. If you don't call this explicitly, wri
 
 **Returns:** 0 if successful and -1 otherwise.
 
-### Write a row of data in one call: `c2numpy_row`
-
-```c
-int c2numpy_row(c2numpy_writer *writer, ...)
-```
-
-Varadic function writes a whole row at a time. If `writer->currentColumn` is out of sync, this will return an error, so it is safe against column-misalignment. The varadic arguments are not type-safe, however: this has the same features and issues as `printf` in the standard library.
-
-**Returns:** 0 if successful, -1 otherwise.
-
 ### Write an item of data: `c2numpy_*`
 
-The following suite of functions support writing one item (row and column) at a time. They check the requested data type against the expected data type for the current column, but cannot prevent column-misalignment if all data types are the same.
+The following suite of functions push one datum (item in a row/column) to the writer. They check the requested data type against the expected data type for the current column, but cannot prevent column-misalignment if all data types are the same.
 
 ```c
 int c2numpy_bool(c2numpy_writer *writer, int8_t data);        // "bool" is just a byte
