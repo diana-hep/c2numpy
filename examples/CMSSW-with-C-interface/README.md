@@ -74,7 +74,7 @@ These files should match the ones in this repository.
 You can load any of the files in a Python session. Start a Python prompt and do
 
 ```python
-trackparams0 = numpy.load("output/trackparams0.npy")
+>>> trackparams0 = numpy.load("output/trackparams0.npy")
 ```
 
 to get the recarray. This array represents a table of data with typed, named columns (just like a flat ROOT NTuple or a Pandas DataFrame). You can access it a column at a time:
