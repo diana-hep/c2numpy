@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
 
   c2numpy_writer writer;
 
-  c2numpy_init(&writer, "testout", 5);
+  c2numpy_init(&writer, "testout", 1000);
   c2numpy_addcolumn(&writer, "one", C2NUMPY_INTC);
   c2numpy_addcolumn(&writer, "two", C2NUMPY_FLOAT64);
   c2numpy_addcolumn(&writer, "three", (c2numpy_type)((int)C2NUMPY_STRING + 5));

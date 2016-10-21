@@ -19,6 +19,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -162,83 +163,59 @@ int c2numpy_addcolumn(c2numpy_writer *writer, const std::string name, c2numpy_ty
 }
 
 int c2numpy_open(c2numpy_writer *writer) {
-    std::string fileName = writer->outputFilePrefix + std::to_string(writer->currentFileNumber) + ".npy";
+    std::stringstream fileNameStream;
+    fileNameStream << writer->outputFilePrefix;
+    fileNameStream << writer->currentFileNumber;
+    fileNameStream << ".npy";
+    std::string fileName = fileNameStream.str();
     writer->file = fopen(fileName.c_str(), "wb");
 
-    // FIXME: better initial guess about header size before going in 128 byte increments
-    char *header = NULL;
-    int64_t headerSize;
-    for (headerSize = 128;  headerSize <= 4294967295;  headerSize += 128) {
-        if (header != NULL) free(header);
-        header = (char*)malloc(headerSize + 1);
+    std::stringstream headerStream;
+    headerStream << "{'descr': [";
 
-        char version1 = headerSize <= 65535;
-        uint32_t descrSize;
-        if (version1)
-            descrSize = headerSize - 10;
-        else
-            descrSize = headerSize - 12;
-
-        header[0] = 147;                            // magic
-        header[1] = 'N';
-        header[2] = 'U';
-        header[3] = 'M';
-        header[4] = 'P';
-        header[5] = 'Y';
-        if (version1) {
-            header[6] = 1;                          // format version 1.0
-            header[7] = 0;
-            const uint16_t descrSize2 = descrSize;
-            *(uint16_t*)(header + 8) = descrSize2;   // version 1.0 has a 16-byte descrSize
-        }
-        else {
-            header[6] = 2;                          // format version 2.0
-            header[7] = 0;
-            *(uint32_t*)(header + 8) = descrSize;   // version 2.0 has a 32-byte descrSize
-        }
-
-        int64_t offset = headerSize - descrSize;
-        offset += snprintf((header + offset), headerSize - offset + 1, "{'descr': [");
-        if (offset >= headerSize) continue;
-
-        int column;
-        for (column = 0;  column < writer->numColumns;  ++column) {
-            offset += snprintf((header + offset), headerSize - offset + 1, "('%s', '%s')",
-                              writer->columnNames[column].c_str(),
-                              c2numpy_descr(writer->columnTypes[column]));
-            if (offset >= headerSize) continue;
-
-            if (column < writer->numColumns - 1)
-                offset += snprintf((header + offset), headerSize - offset + 1, ", ");
-            if (offset >= headerSize) continue;
-        }
-
-        offset += snprintf((header + offset), headerSize - offset + 1, "], 'fortran_order': False, 'shape': (");
-        if (offset >= headerSize) continue;
-
-        writer->sizeSeekPosition = offset;
-        writer->sizeSeekSize = snprintf((header + offset), headerSize - offset + 1, "%d", writer->numRowsPerFile);
-        offset += writer->sizeSeekSize;
-        if (offset >= headerSize) continue;
-
-        offset += snprintf((header + offset), headerSize - offset + 1, ",), }");
-        if (offset >= headerSize) continue;
-
-        while (offset < headerSize) {
-            if (offset < headerSize - 1)
-                header[offset] = ' ';
-            else
-                header[offset] = '\n';
-            offset += 1;
-        }
-        header[headerSize] = 0;
-
-        fwrite(header, 1, headerSize, writer->file);
-
-        return 0;
+    int column;
+    for (column = 0;  column < writer->numColumns;  ++column) {
+      headerStream << "('" << writer->columnNames[column] << "', '" << c2numpy_descr(writer->columnTypes[column]) << "')";
+      if (column < writer->numColumns - 1)
+        headerStream << ", ";
     }
 
-    return -1;
+    headerStream << "], 'fortran_order': False, 'shape': (";
+
+    writer->sizeSeekPosition = headerStream.str().size();
+
+    headerStream << writer->numRowsPerFile;
+
+    writer->sizeSeekSize = headerStream.str().size() - writer->sizeSeekPosition;
+
+    headerStream << ",), }";
+
+    int headerSize = headerStream.str().size();
+    char version = 1;
+
+    if (headerSize > 65535) version = 2;
+    while ((6 + 2 + (version == 1 ? 2 : 4) + headerSize) % 16 != 0) {
+      headerSize += 1;
+      headerStream << " ";
+      if (headerSize > 65535) version = 2;
+    }
+
+    fwrite("\x93NUMPY", 1, 6, writer->file);
+    if (version == 1) {
+      fwrite("\x01\x00", 1, 2, writer->file);
+      fwrite(&headerSize, 1, 2, writer->file);
+      writer->sizeSeekPosition += 6 + 2 + 2;
+    }
+    else {
+      fwrite("\x02\x00", 1, 2, writer->file);
+      fwrite(&headerSize, 1, 4, writer->file);
+      writer->sizeSeekPosition += 6 + 2 + 4;
+    }
+
+    std::string header = headerStream.str();
+    fwrite(header.c_str(), 1, header.size(), writer->file);
+
+    return 0;
 }
 
 #define C2NUMPY_CHECK_ITEM {                                                    \
