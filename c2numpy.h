@@ -19,6 +19,9 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include <string>
+#include <vector>
+
 const char* C2NUMPY_VERSION = "1.1";
 
 // http://docs.scipy.org/doc/numpy/user/basics.types.html
@@ -49,16 +52,14 @@ typedef enum {
 
 // a Numpy writer object
 typedef struct {
-    char buffer[16];              // (internal) used for temporary copies in c2numpy_row
-
     FILE *file;                   // output file handle
-    char *outputFilePrefix;       // output file name, not including the rotating number and .npy
+    std::string outputFilePrefix;       // output file name, not including the rotating number and .npy
     int64_t sizeSeekPosition;     // (internal) keep track of number of rows to modify before closing
     int64_t sizeSeekSize;         // (internal)
 
     int32_t numColumns;           // number of columns in the record array
-    char **columnNames;           // column names
-    c2numpy_type *columnTypes;    // column types
+    std::vector<std::string> columnNames;           // column names
+    std::vector<c2numpy_type> columnTypes;    // column types
 
     int32_t numRowsPerFile;       // maximum number of rows per file
     int32_t currentColumn;        // current column number
@@ -137,16 +138,13 @@ const char *c2numpy_descr(c2numpy_type type) {
     return NULL;
 }
 
-int c2numpy_init(c2numpy_writer *writer, const char *outputFilePrefix, int32_t numRowsPerFile) {
+int c2numpy_init(c2numpy_writer *writer, const std::string outputFilePrefix, int32_t numRowsPerFile) {
     writer->file = NULL;
-    writer->outputFilePrefix = (char*)malloc(strlen(outputFilePrefix) + 1);
-    strcpy(writer->outputFilePrefix, outputFilePrefix);
+    writer->outputFilePrefix = outputFilePrefix;
     writer->sizeSeekPosition = 0;
     writer->sizeSeekSize = 0;
 
     writer->numColumns = 0;
-    writer->columnNames = NULL;
-    writer->columnTypes = NULL;
 
     writer->numRowsPerFile = numRowsPerFile;
     writer->currentColumn = 0;
@@ -156,39 +154,21 @@ int c2numpy_init(c2numpy_writer *writer, const char *outputFilePrefix, int32_t n
     return 0;
 }
 
-int c2numpy_addcolumn(c2numpy_writer *writer, const char *name, c2numpy_type type) {
+int c2numpy_addcolumn(c2numpy_writer *writer, const std::string name, c2numpy_type type) {
     writer->numColumns += 1;
-
-    char *newColumnName = (char*)malloc(strlen(name) + 1);
-    strcpy(newColumnName, name);
-
-    char **oldColumnNames = writer->columnNames;
-    writer->columnNames = (char**)malloc(writer->numColumns * sizeof(char*));
-    for (int column = 0;  column < writer->numColumns - 1;  ++column)
-        writer->columnNames[column] = oldColumnNames[column];
-    writer->columnNames[writer->numColumns - 1] = newColumnName;
-    if (oldColumnNames != NULL)
-        free(oldColumnNames);
-
-    c2numpy_type *oldColumnTypes = writer->columnTypes;
-    writer->columnTypes = (c2numpy_type*)malloc(writer->numColumns * sizeof(c2numpy_type));
-    for (int column = 0;  column < writer->numColumns - 1;  ++column)
-        writer->columnTypes[column] = oldColumnTypes[column];
-    writer->columnTypes[writer->numColumns - 1] = type;
-    if (oldColumnTypes != NULL)
-        free(oldColumnTypes);
-
+    writer->columnNames.push_back(name);
+    writer->columnTypes.push_back(type);
     return 0;
 }
 
 int c2numpy_open(c2numpy_writer *writer) {
-    char *fileName = (char*)malloc(strlen(writer->outputFilePrefix) + 15);
-    sprintf(fileName, "%s%d.npy", writer->outputFilePrefix, writer->currentFileNumber);
-    writer->file = fopen(fileName, "wb");
+    std::string fileName = writer->outputFilePrefix + std::to_string(writer->currentFileNumber) + ".npy";
+    writer->file = fopen(fileName.c_str(), "wb");
 
     // FIXME: better initial guess about header size before going in 128 byte increments
     char *header = NULL;
-    for (int64_t headerSize = 128;  headerSize <= 4294967295;  headerSize += 128) {
+    int64_t headerSize;
+    for (headerSize = 128;  headerSize <= 4294967295;  headerSize += 128) {
         if (header != NULL) free(header);
         header = (char*)malloc(headerSize + 1);
 
@@ -221,9 +201,10 @@ int c2numpy_open(c2numpy_writer *writer) {
         offset += snprintf((header + offset), headerSize - offset + 1, "{'descr': [");
         if (offset >= headerSize) continue;
 
-        for (int column = 0;  column < writer->numColumns;  ++column) {
+        int column;
+        for (column = 0;  column < writer->numColumns;  ++column) {
             offset += snprintf((header + offset), headerSize - offset + 1, "('%s', '%s')",
-                              writer->columnNames[column],
+                              writer->columnNames[column].c_str(),
                               c2numpy_descr(writer->columnTypes[column]));
             if (offset >= headerSize) continue;
 
@@ -453,7 +434,8 @@ int c2numpy_close(c2numpy_writer *writer) {
             // so go back to the part of the header where that was written
             fseek(writer->file, writer->sizeSeekPosition, SEEK_SET);
             // overwrite it with spaces
-            for (int i = 0;  i < writer->sizeSeekSize;  ++i)
+            int i;
+            for (i = 0;  i < writer->sizeSeekSize;  ++i)
                 fputc(' ', writer->file);
             // now go back and write it again (it MUST be fewer or an equal number of digits)
             fseek(writer->file, writer->sizeSeekPosition, SEEK_SET);
@@ -462,13 +444,6 @@ int c2numpy_close(c2numpy_writer *writer) {
         // now close it
         fclose(writer->file);
     }
-
-    // and clear the malloc'ed memory
-    free(writer->outputFilePrefix);
-    for (int column = 0;  column < writer->numColumns;  ++column)
-        free(writer->columnNames[column]);
-    free(writer->columnNames);
-    free(writer->columnTypes);
 
     return 0;
 }
