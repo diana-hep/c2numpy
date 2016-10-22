@@ -31,7 +31,7 @@ We added c2numpy to this analyzer by copying the header file into `Demo/DemoAnal
   3. Adding a
 
      ```c++
-c2numpy_init(&writer, "output/trackparams", 1000);
+c2numpy_init(&writer, "output/params", 1000);
 c2numpy_addcolumn(&writer, "pt", C2NUMPY_FLOAT64);
 c2numpy_addcolumn(&writer, "eta", C2NUMPY_FLOAT64);
 c2numpy_addcolumn(&writer, "phi", C2NUMPY_FLOAT64);
@@ -65,7 +65,7 @@ mkdir output
 cmsRun Demo/DemoAnalyzer/python/ConfFile_cfg.py
 ```
 
-When CMSSW runs over the 10-event dataset, it produces seven files in `output` named `trackparams0.npy` through `trackparams6.npy`. To make one file, increase the number of rows per file (currently 1000) in the `c2numpy_init` call, recompile, and rerun.
+When CMSSW runs over the 10-event dataset, it produces seven files in `output` named `params0.npy` through `params6.npy`. To make one file, increase the number of rows per file (currently 1000) in the `c2numpy_init` call, recompile, and rerun.
 
 These files should match the ones in this repository.
 
@@ -75,13 +75,13 @@ You can load any of the files in a Python session. Start a Python prompt and do
 
 ```python
 import numpy as np
->>> trackparams0 = np.load("output/trackparams0.npy")
+>>> params0 = np.load("output/params0.npy")
 ```
 
 to get the recarray. This array represents a table of data with typed, named columns (just like a flat ROOT NTuple or a Pandas DataFrame). You can access it a column at a time:
 
 ```python
->>> trackparams0["pt"]
+>>> params0["pt"]
 array([  0.58615864,   0.47248294,   1.74911408,   1.04643586,
          0.47096605,   0.59780441,   0.88029248,   3.06881774,
          0.66100567,   1.33790879,   0.65042406,   0.60015372,
@@ -90,25 +90,25 @@ array([  0.58615864,   0.47248294,   1.74911408,   1.04643586,
 ...
 
 # to see array shape we can use built in numpy functionality
->>> print np.shape(trackparams0)
+>>> print np.shape(params0)
 (1000,)
 ```
 
 a row at a time:
 
 ```python
->>> trackparams0[100]
+>>> params0[100]
 (1.384070332555011, 0.18779495889500655, -1.6946575614328503, 0.19390893548491872, 0.39640133641298614)
->>> trackparams0.dtype.names
+>>> params0.dtype.names
 ('pt', 'eta', 'phi', 'dxy', 'dz')
->>> trackparams0.dtype["pt"]
+>>> params0.dtype["pt"]
 dtype('float64')
 ```
 
 or any combination:
 
 ```python
->>> trackparams0["pt"][100:150]
+>>> params0["pt"][100:150]
 array([ 1.38407033,  0.5997181 ,  2.64444269,  1.17549855,  2.81446767,
         1.41189475,  2.28960126,  0.56264374,  1.43745931,  0.78332034,
         1.34970658,  0.81638258,  1.52328245,  0.60757518,  1.1785421 ,
@@ -127,7 +127,7 @@ Let's convert this into pandas DataFrame and see how we can access the data
 
 ```python
 >>> import pandas as pd
->>> df = pd.DataFrame(trackparams0)
+>>> df = pd.DataFrame(params0)
 >>> # access first tree rows
 >>> print df.iloc[:3]
        dxy        dz
