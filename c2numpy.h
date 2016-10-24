@@ -19,7 +19,11 @@
 #include <stdarg.h>
 #include <string.h>
 
-const char* C2NUMPY_VERSION = "1.1";
+#include <sstream>
+#include <string>
+#include <vector>
+
+const char* C2NUMPY_VERSION = "1.2";
 
 // http://docs.scipy.org/doc/numpy/user/basics.types.html
 typedef enum {
@@ -49,16 +53,14 @@ typedef enum {
 
 // a Numpy writer object
 typedef struct {
-    char buffer[16];              // (internal) used for temporary copies in c2numpy_row
-
     FILE *file;                   // output file handle
-    char *outputFilePrefix;       // output file name, not including the rotating number and .npy
+    std::string outputFilePrefix;       // output file name, not including the rotating number and .npy
     int64_t sizeSeekPosition;     // (internal) keep track of number of rows to modify before closing
     int64_t sizeSeekSize;         // (internal)
 
     int32_t numColumns;           // number of columns in the record array
-    char **columnNames;           // column names
-    c2numpy_type *columnTypes;    // column types
+    std::vector<std::string> columnNames;           // column names
+    std::vector<c2numpy_type> columnTypes;    // column types
 
     int32_t numRowsPerFile;       // maximum number of rows per file
     int32_t currentColumn;        // current column number
@@ -137,16 +139,13 @@ const char *c2numpy_descr(c2numpy_type type) {
     return NULL;
 }
 
-int c2numpy_init(c2numpy_writer *writer, const char *outputFilePrefix, int32_t numRowsPerFile) {
+int c2numpy_init(c2numpy_writer *writer, const std::string outputFilePrefix, int32_t numRowsPerFile) {
     writer->file = NULL;
-    writer->outputFilePrefix = (char*)malloc(strlen(outputFilePrefix) + 1);
-    strcpy(writer->outputFilePrefix, outputFilePrefix);
+    writer->outputFilePrefix = outputFilePrefix;
     writer->sizeSeekPosition = 0;
     writer->sizeSeekSize = 0;
 
     writer->numColumns = 0;
-    writer->columnNames = NULL;
-    writer->columnTypes = NULL;
 
     writer->numRowsPerFile = numRowsPerFile;
     writer->currentColumn = 0;
@@ -156,108 +155,67 @@ int c2numpy_init(c2numpy_writer *writer, const char *outputFilePrefix, int32_t n
     return 0;
 }
 
-int c2numpy_addcolumn(c2numpy_writer *writer, const char *name, c2numpy_type type) {
+int c2numpy_addcolumn(c2numpy_writer *writer, const std::string name, c2numpy_type type) {
     writer->numColumns += 1;
-
-    char *newColumnName = (char*)malloc(strlen(name) + 1);
-    strcpy(newColumnName, name);
-
-    char **oldColumnNames = writer->columnNames;
-    writer->columnNames = (char**)malloc(writer->numColumns * sizeof(char*));
-    for (int column = 0;  column < writer->numColumns - 1;  ++column)
-        writer->columnNames[column] = oldColumnNames[column];
-    writer->columnNames[writer->numColumns - 1] = newColumnName;
-    if (oldColumnNames != NULL)
-        free(oldColumnNames);
-
-    c2numpy_type *oldColumnTypes = writer->columnTypes;
-    writer->columnTypes = (c2numpy_type*)malloc(writer->numColumns * sizeof(c2numpy_type));
-    for (int column = 0;  column < writer->numColumns - 1;  ++column)
-        writer->columnTypes[column] = oldColumnTypes[column];
-    writer->columnTypes[writer->numColumns - 1] = type;
-    if (oldColumnTypes != NULL)
-        free(oldColumnTypes);
-
+    writer->columnNames.push_back(name);
+    writer->columnTypes.push_back(type);
     return 0;
 }
 
 int c2numpy_open(c2numpy_writer *writer) {
-    char *fileName = (char*)malloc(strlen(writer->outputFilePrefix) + 15);
-    sprintf(fileName, "%s%d.npy", writer->outputFilePrefix, writer->currentFileNumber);
-    writer->file = fopen(fileName, "wb");
+    std::stringstream fileNameStream;
+    fileNameStream << writer->outputFilePrefix;
+    fileNameStream << writer->currentFileNumber;
+    fileNameStream << ".npy";
+    std::string fileName = fileNameStream.str();
+    writer->file = fopen(fileName.c_str(), "wb");
 
-    // FIXME: better initial guess about header size before going in 128 byte increments
-    char *header = NULL;
-    for (int64_t headerSize = 128;  headerSize <= 4294967295;  headerSize += 128) {
-        if (header != NULL) free(header);
-        header = (char*)malloc(headerSize + 1);
+    std::stringstream headerStream;
+    headerStream << "{'descr': [";
 
-        char version1 = headerSize <= 65535;
-        uint32_t descrSize;
-        if (version1)
-            descrSize = headerSize - 10;
-        else
-            descrSize = headerSize - 12;
-
-        header[0] = 147;                            // magic
-        header[1] = 'N';
-        header[2] = 'U';
-        header[3] = 'M';
-        header[4] = 'P';
-        header[5] = 'Y';
-        if (version1) {
-            header[6] = 1;                          // format version 1.0
-            header[7] = 0;
-            const uint16_t descrSize2 = descrSize;
-            *(uint16_t*)(header + 8) = descrSize2;   // version 1.0 has a 16-byte descrSize
-        }
-        else {
-            header[6] = 2;                          // format version 2.0
-            header[7] = 0;
-            *(uint32_t*)(header + 8) = descrSize;   // version 2.0 has a 32-byte descrSize
-        }
-
-        int64_t offset = headerSize - descrSize;
-        offset += snprintf((header + offset), headerSize - offset + 1, "{'descr': [");
-        if (offset >= headerSize) continue;
-
-        for (int column = 0;  column < writer->numColumns;  ++column) {
-            offset += snprintf((header + offset), headerSize - offset + 1, "('%s', '%s')",
-                              writer->columnNames[column],
-                              c2numpy_descr(writer->columnTypes[column]));
-            if (offset >= headerSize) continue;
-
-            if (column < writer->numColumns - 1)
-                offset += snprintf((header + offset), headerSize - offset + 1, ", ");
-            if (offset >= headerSize) continue;
-        }
-
-        offset += snprintf((header + offset), headerSize - offset + 1, "], 'fortran_order': False, 'shape': (");
-        if (offset >= headerSize) continue;
-
-        writer->sizeSeekPosition = offset;
-        writer->sizeSeekSize = snprintf((header + offset), headerSize - offset + 1, "%d", writer->numRowsPerFile);
-        offset += writer->sizeSeekSize;
-        if (offset >= headerSize) continue;
-
-        offset += snprintf((header + offset), headerSize - offset + 1, ",), }");
-        if (offset >= headerSize) continue;
-
-        while (offset < headerSize) {
-            if (offset < headerSize - 1)
-                header[offset] = ' ';
-            else
-                header[offset] = '\n';
-            offset += 1;
-        }
-        header[headerSize] = 0;
-
-        fwrite(header, 1, headerSize, writer->file);
-
-        return 0;
+    int column;
+    for (column = 0;  column < writer->numColumns;  ++column) {
+      headerStream << "('" << writer->columnNames[column] << "', '" << c2numpy_descr(writer->columnTypes[column]) << "')";
+      if (column < writer->numColumns - 1)
+        headerStream << ", ";
     }
 
-    return -1;
+    headerStream << "], 'fortran_order': False, 'shape': (";
+
+    writer->sizeSeekPosition = headerStream.str().size();
+
+    headerStream << writer->numRowsPerFile;
+
+    writer->sizeSeekSize = headerStream.str().size() - writer->sizeSeekPosition;
+
+    headerStream << ",), }";
+
+    int headerSize = headerStream.str().size();
+    char version = 1;
+
+    if (headerSize > 65535) version = 2;
+    while ((6 + 2 + (version == 1 ? 2 : 4) + headerSize) % 16 != 0) {
+      headerSize += 1;
+      headerStream << " ";
+      if (headerSize > 65535) version = 2;
+    }
+
+    fwrite("\x93NUMPY", 1, 6, writer->file);
+    if (version == 1) {
+      fwrite("\x01\x00", 1, 2, writer->file);
+      fwrite(&headerSize, 1, 2, writer->file);
+      writer->sizeSeekPosition += 6 + 2 + 2;
+    }
+    else {
+      fwrite("\x02\x00", 1, 2, writer->file);
+      fwrite(&headerSize, 1, 4, writer->file);
+      writer->sizeSeekPosition += 6 + 2 + 4;
+    }
+
+    std::string header = headerStream.str();
+    fwrite(header.c_str(), 1, header.size(), writer->file);
+
+    return 0;
 }
 
 #define C2NUMPY_CHECK_ITEM {                                                    \
@@ -453,7 +411,8 @@ int c2numpy_close(c2numpy_writer *writer) {
             // so go back to the part of the header where that was written
             fseek(writer->file, writer->sizeSeekPosition, SEEK_SET);
             // overwrite it with spaces
-            for (int i = 0;  i < writer->sizeSeekSize;  ++i)
+            int i;
+            for (i = 0;  i < writer->sizeSeekSize;  ++i)
                 fputc(' ', writer->file);
             // now go back and write it again (it MUST be fewer or an equal number of digits)
             fseek(writer->file, writer->sizeSeekPosition, SEEK_SET);
@@ -462,13 +421,6 @@ int c2numpy_close(c2numpy_writer *writer) {
         // now close it
         fclose(writer->file);
     }
-
-    // and clear the malloc'ed memory
-    free(writer->outputFilePrefix);
-    for (int column = 0;  column < writer->numColumns;  ++column)
-        free(writer->columnNames[column]);
-    free(writer->columnNames);
-    free(writer->columnTypes);
 
     return 0;
 }

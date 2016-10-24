@@ -1,6 +1,6 @@
 # c2numpy
 
-Write Numpy (.npy) files from C or C++ for analysis in [Numpy](http://www.numpy.org/), [Scipy](https://www.scipy.org/), [Scikit-Learn](http://scikit-learn.org/stable/), [Pandas](http://pandas.pydata.org/), etc.
+Write Numpy (.npy) files from C++ for analysis in [Numpy](http://www.numpy.org/), [Scipy](https://www.scipy.org/), [Scikit-Learn](http://scikit-learn.org/stable/), [Pandas](http://pandas.pydata.org/), etc.
 
 Fills a collection of .npy files with a maximum size, a common prefix and a rotating number (like rotating log files). Each file contains one [structured array](http://docs.scipy.org/doc/numpy/user/basics.rec.html), consisting of named, typed columns (numbers and fixed-size strings) and many rows. In Python, you access rows and columns with string and integer indexing:
 
@@ -10,11 +10,11 @@ myarray[3:5]         # all columns, slice of rows
                      # etc.
 ```
 
-This project does not support _reading_ of Numpy files in C.
+This project does not support _reading_ of Numpy files in C++.
 
 ## Installation
 
-Put `c2numpy.h` in your C or C++ project and compile. No libraries are required. Adheres to strict [ISO C99](http://www.iso-9899.info/wiki/The_Standard).
+Put `c2numpy.h` in your C++ project and compile. No libraries are required. Earlier versions of this worked with strict C99, but this project now requires C++.
 
 For an example and testing, `test.c` is provided. Compile and run it with
 
@@ -29,9 +29,9 @@ python -c "import numpy; print numpy.load(open('testout0.npy'));"
 python -c "import numpy; print numpy.load(open('testout1.npy'));"
 ```
 
-## C example
+## C++ example
 
-```c
+```c++
 // declare writer
 c2numpy_writer writer;
 
@@ -60,13 +60,15 @@ c2numpy_string(&writer, "THREE");
 c2numpy_close(&writer);
 ```
 
-## C API
+## C-like API
+
+The original version of this project could be used in pure C projects, and hence it has a pure C API. However, now that the internals require C++, this API will be replaced by a C++ API. This documentation will always be in sync with the codebase (in the same branch of GitHub).
 
 ### Enumeration constants for Numpy types: `c2numpy_type`
 
 See [number type definitions](http://docs.scipy.org/doc/numpy/user/basics.types.html) in the Numpy documentation.
 
-```c
+```c++
 C2NUMPY_BOOL        // Boolean (True or False) stored as a byte
 C2NUMPY_INT         // Default integer type (same as C long; normally either int64 or int32)
 C2NUMPY_INTC        // Identical to C int (normally int32 or int64)
@@ -103,18 +105,18 @@ Not currently supported:
 
 A writer contains the following fields. Some of them are internal, and all of them should be treated as read-only. Use the associated functions to manipulate.
 
-```c
+```c++
 typedef struct {
     char buffer[16];              // (internal) used for temporary copies in c2numpy_row
 
     FILE *file;                   // output file handle
-    char *outputFilePrefix;       // output file name, not including the rotating number and .npy
+    std::string outputFilePrefix; // output file name, not including the rotating number and .npy
     int64_t sizeSeekPosition;     // (internal) keep track of number of rows to modify before closing
     int64_t sizeSeekSize;         // (internal)
 
     int32_t numColumns;           // number of columns in the record array
-    char **columnNames;           // column names
-    c2numpy_type *columnTypes;    // column types
+    std::vector<std::string> columnNames;  // column names
+    std::vector<c2numpy_type> columnTypes; // column types
 
     int32_t numRowsPerFile;       // maximum number of rows per file
     int32_t currentColumn;        // current column number
@@ -125,7 +127,7 @@ typedef struct {
 
 ### Numpy description string from type: `c2numpy_descr`
 
-```c
+```c++
 const char *c2numpy_descr(c2numpy_type type);
 ```
 
@@ -133,7 +135,7 @@ Rarely needed by typical users; converts a `c2numpy_type` to the corresponding N
 
 ### Initialize a writer object: `c2numpy_init`
 
-```c
+```c++
 int c2numpy_init(c2numpy_writer *writer, const char *outputFilePrefix, int32_t numRowsPerFile);
 ```
 
@@ -148,7 +150,7 @@ This is the first function you should call on a new writer. After this, call `c2
 
 ### Add a column to the writer: `c2numpy_addcolumn`
 
-```c
+```c++
 int c2numpy_addcolumn(c2numpy_writer *writer, const char *name, c2numpy_type type);
 ```
 
@@ -163,7 +165,7 @@ This is the second function you should call on a new writer. Call it once for ea
 
 ### Optional open file: `c2numpy_open`
 
-```c
+```c++
 int c2numpy_open(c2numpy_writer *writer);
 ```
 
@@ -175,7 +177,7 @@ Open a file and write its header to disk. If you don't call this explicitly, wri
 
 The following suite of functions push one datum (item in a row/column) to the writer. They check the requested data type against the expected data type for the current column, but cannot prevent column-misalignment if all data types are the same.
 
-```c
+```c++
 int c2numpy_bool(c2numpy_writer *writer, int8_t data);        // "bool" is just a byte
 int c2numpy_int(c2numpy_writer *writer, int64_t data);        // Numpy's default int is 64-bit
 int c2numpy_intc(c2numpy_writer *writer, int data);           // the built-in C int
@@ -204,17 +206,13 @@ The string form, `c2numpy_string`, **only writes** the string `data`, so you are
 
 ### Required close file: `c2numpy_close`
 
-```c
+```c++
 int c2numpy_close(c2numpy_writer *writer);
 ```
 
 If you do not explicitly close the writer, your last file may be corrupted. Be sure to do this after your loop over data.
 
 **Returns:** 0 if successful and -1 otherwise.
-
-## C++ example and C++ API
-
-Not written yet (will wrap the C functions with C++ class structure using [__cplusplus](http://stackoverflow.com/a/6779715/1623645)).
 
 ## To do
 
@@ -224,4 +222,4 @@ Not written yet (will wrap the C functions with C++ class structure using [__cpl
    * Faster guessing of header size and column types.
    * Float16 and complex numbers.
    * Distinct return values for different errors and documentation of those errors.
-   * Optional C++ API.
+   * C++ API.
