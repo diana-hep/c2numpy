@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-const char* C2NUMPY_VERSION = "1.1";
+const char* C2NUMPY_VERSION = "1.2";
 
 // http://docs.scipy.org/doc/numpy/user/basics.types.html
 typedef enum {
