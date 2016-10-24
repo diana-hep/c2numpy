@@ -1,6 +1,9 @@
 <use name="FWCore/Framework"/>
+<use name="Fireworks/Geometry"/>
+<use name="Fireworks/Tracks"/>
 <use name="FWCore/PluginManager"/>
 <use name="FWCore/ParameterSet"/>
 <use name="DataFormats/TrackReco"/>
+<use name="DataFormats/TrackerRecHit2D"/>
 <use name="CommonTools/UtilAlgos"/>
 <flags EDM_PLUGIN="1"/>
