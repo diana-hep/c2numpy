@@ -47,4 +47,15 @@ class NumpyCommonBlock(object):
 
         self._struct = self.struct(ctypes.c_uint64(numArrays), c_names, c_types, c_data, c_lengths, c_locks, c_statelock, self._state)
 
+    class Accessor(object):
+        def __init__(self, lock, array):
+            self.lock = lock
+            self.array = array
+
+        def __getitem__(self, slice):
+            lock.acquire_read()
+            try:
+                return self.array[slice]
+            finally:
+                lock.release()
 
