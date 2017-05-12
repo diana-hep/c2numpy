@@ -42,7 +42,7 @@ public:
     uint64_t current = state;
     pthread_rwlock_unlock(statelock);
 
-    while (current & formask) {
+    while (!(current & formask)) {
       sleep(1);
       while (pthread_rwlock_rdlock(statelock) != 0) sleep(1);
       current = state;
