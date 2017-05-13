@@ -39,66 +39,35 @@ public:
   }
 
   inline void wait(uint64_t forstate) {
-    while (pthread_rwlock_rdlock(statelock) != 0) sleep(1);
+    while (pthread_rwlock_rdlock(statelock) != 0) usleep(1);
     uint64_t current = state;
     pthread_rwlock_unlock(statelock);
 
     while (current != forstate) {
-      sleep(1);
-      while (pthread_rwlock_rdlock(statelock) != 0) sleep(1);
+      usleep(1);
+      while (pthread_rwlock_rdlock(statelock) != 0) usleep(1);
       current = state;
       pthread_rwlock_unlock(statelock);
     }
   }
 
   inline void waitmask(uint64_t formask) {
-    while (pthread_rwlock_rdlock(statelock) != 0) sleep(1);
+    while (pthread_rwlock_rdlock(statelock) != 0) usleep(1);
     uint64_t current = state;
     pthread_rwlock_unlock(statelock);
 
     while (!(current & formask)) {
-      sleep(1);
-      while (pthread_rwlock_rdlock(statelock) != 0) sleep(1);
+      usleep(1);
+      while (pthread_rwlock_rdlock(statelock) != 0) usleep(1);
       current = state;
       pthread_rwlock_unlock(statelock);
     }
   }
 
   inline void notify(uint64_t newstate) {
-    while (pthread_rwlock_wrlock(statelock) != 0) sleep(1);
+    while (pthread_rwlock_wrlock(statelock) != 0) usleep(1);
     state = newstate;
     pthread_rwlock_unlock(statelock);
-  }
-
-  void checkall() {
-    std::cout << "numArrays " << numArrays << std::endl;
-    std::cout << "names (" << names[0] << ") (" << names[1] << ") (" << names[2] << ")" << std::endl;
-    std::cout << "types (" << types[0] << ") (" << types[1] << ") (" << types[2] << ")" << std::endl;
-    std::cout << "data " << ((double**)data)[0][0] << " " << ((double**)data)[1][0] << " " << ((double**)data)[2][0] << std::endl;
-    std::cout << "lengths " << lengths[0] << " " << lengths[1] << " " << lengths[2] << std::endl;
-    std::cout << "state " << state << std::endl;
-
-    std::cout << "lock0 " << pthread_rwlock_wrlock(locks[0]) << std::endl;
-    std::cout << "lock1 " << pthread_rwlock_wrlock(locks[1]) << std::endl;
-    std::cout << "lock2 " << pthread_rwlock_wrlock(locks[2]) << std::endl;
-    std::cout << "lockstate " << pthread_rwlock_wrlock(statelock) << std::endl;
-
-    std::cout << "unlockstate " << pthread_rwlock_unlock(statelock) << std::endl;
-    std::cout << "unlock2 " << pthread_rwlock_unlock(locks[2]) << std::endl;
-    std::cout << "unlock1 " << pthread_rwlock_unlock(locks[1]) << std::endl;
-    std::cout << "unlock0 " << pthread_rwlock_unlock(locks[0]) << std::endl;
-
-    std::cout << "lock0 " << pthread_rwlock_rdlock(locks[0]) << std::endl;
-    std::cout << "lock1 " << pthread_rwlock_rdlock(locks[1]) << std::endl;
-    std::cout << "lock2 " << pthread_rwlock_rdlock(locks[2]) << std::endl;
-    std::cout << "lockstate " << pthread_rwlock_rdlock(statelock) << std::endl;
-
-    std::cout << "unlockstate " << pthread_rwlock_unlock(statelock) << std::endl;
-    std::cout << "unlock2 " << pthread_rwlock_unlock(locks[2]) << std::endl;
-    std::cout << "unlock1 " << pthread_rwlock_unlock(locks[1]) << std::endl;
-    std::cout << "unlock0 " << pthread_rwlock_unlock(locks[0]) << std::endl;
-
-    std::cout << "YAY" << std::endl;
   }
 
 private:
@@ -159,18 +128,18 @@ public:
     length = cb->lengths[which];
   }
 
-  inline const T get(uint64_t index) {
+  inline T get(uint64_t index) {
     assert(index < length);
     return data[index];
   }
 
-  inline const void set(uint64_t index, T value) {
+  inline void set(uint64_t index, T value) {
     data[index] = value;
   }
 
   inline T safeget(uint64_t index) {
     assert(index < length);
-    while (pthread_rwlock_rdlock(lock) != 0) sleep(1);
+    while (pthread_rwlock_rdlock(lock) != 0) usleep(1);
     T out = data[index];
     pthread_rwlock_unlock(lock);
     return out;
@@ -178,9 +147,13 @@ public:
 
   inline void safeset(uint64_t index, T value) {
     assert(index < length);
-    while (pthread_rwlock_wrlock(lock) != 0) sleep(1);
+    while (pthread_rwlock_wrlock(lock) != 0) usleep(1);
     data[index] = value;
     pthread_rwlock_unlock(lock);
+  }
+
+  inline uint64_t size() {
+    return length;
   }
 
 private:

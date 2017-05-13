@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import ctypes
+import time
 
 import numpy
 import prwlock
@@ -29,17 +30,25 @@ class NumpyCommonBlock(object):
             ("statelock", ctypes.POINTER(None)),
             ("state", ctypes.c_uint64)]
 
-    def __init__(self, **arrays):
+    def __init__(self, *order, **arrays):
         self._arrays = arrays
 
         numArrays = len(arrays)
-        names = sorted(arrays)
-        c_names = ctypes.ARRAY(ctypes.c_char_p, numArrays)(*[ctypes.c_char_p(x) for x in names])
-        c_types = ctypes.ARRAY(ctypes.c_char_p, numArrays)(*[ctypes.c_char_p(bytes(arrays[x].dtype)) for x in names])
+
+        self._order = []
+        remaining = set(arrays)
+        for name in order:
+            if name in remaining:
+                self._order.append(name)
+                remaining.discard(name)
+        self._order.extend(sorted(remaining))
+            
+        c_names = ctypes.ARRAY(ctypes.c_char_p, numArrays)(*[ctypes.c_char_p(x) for x in self._order])
+        c_types = ctypes.ARRAY(ctypes.c_char_p, numArrays)(*[ctypes.c_char_p(bytes(arrays[x].dtype)) for x in self._order])
         c_data = ctypes.ARRAY(ctypes.POINTER(None), numArrays)(*[
-            arrays[x].ctypes.data_as(ctypes.POINTER(None)) for x in names])
-        c_lengths = ctypes.ARRAY(ctypes.c_uint64, numArrays)(*[ctypes.c_uint64(numpy.product(arrays[x].shape)) for x in names])
-        self._locks = [prwlock.RWLock() for x in names]
+            arrays[x].ctypes.data_as(ctypes.POINTER(None)) for x in self._order])
+        c_lengths = ctypes.ARRAY(ctypes.c_uint64, numArrays)(*[ctypes.c_uint64(numpy.product(arrays[x].shape)) for x in self._order])
+        self._locks = [prwlock.RWLock() for x in self._order]
         c_locks = ctypes.ARRAY(ctypes.POINTER(None), numArrays)(*[ctypes.cast(x._lock, ctypes.POINTER(None)) for x in self._locks])
         self._statelock = prwlock.RWLock()
         c_statelock = ctypes.cast(self._statelock._lock, ctypes.POINTER(None))
@@ -53,9 +62,51 @@ class NumpyCommonBlock(object):
             self.array = array
 
         def __getitem__(self, slice):
-            lock.acquire_read()
+            self.lock.acquire_read()
             try:
                 return self.array[slice]
             finally:
-                lock.release()
+                self.lock.release()
+
+        def __setitem__(self, slice, value):
+            self.lock.acquire_write()
+            try:
+                self.array[slice] = value
+            finally:
+                self.lock.release()
+
+        def size(self):
+            return len(self.array)
+
+    def accessor(self, name):
+        return self.Accessor(self._locks[self._order[name]], self._arrays[name])
+
+    def _wait(self, condition):
+        self._statelock.acquire_read()
+        try:
+            current = self._state.value
+        finally:
+            self._statelock.release()
+
+        while condition(current):
+            time.sleep(1e-6)
+            self._statelock.acquire_read()
+            try:
+                current = self._state.value
+            finally:
+                self._statelock.release()
+
+    def wait(self, forstate):
+        self._wait(lambda current: current != forstate)
+
+    def waitmask(self, formask):
+        self._wait(lambda current: not (current & formask))
+
+    def notify(self, newstate):
+        self._statelock.acquire_write()
+        try:
+            self._state.value = newstate
+        finally:
+            self._statelock.release()
+
 
