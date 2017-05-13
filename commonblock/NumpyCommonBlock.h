@@ -18,8 +18,6 @@
 #include <typeinfo>
 #include <string>
 
-#include <iostream>
-
 template <typename T> class NumpyCommonBlockAccessor;
 
 class NumpyCommonBlock {
@@ -36,6 +34,18 @@ public:
     assert(which < numArrays);
 
     return NumpyCommonBlockAccessor<T>(this, which);
+  }
+
+  template <typename T> NumpyCommonBlockAccessor<T>* newAccessor(std::string name) {
+    uint64_t which = 0;
+    while (which < numArrays) {
+      if (std::string(names[which]) == name)
+        break;
+      which++;
+    };
+    assert(which < numArrays);
+
+    return new NumpyCommonBlockAccessor<T>(this, which);
   }
 
   inline void wait(uint64_t forstate) {

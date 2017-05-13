@@ -19,7 +19,6 @@
 // system include files
 #include <memory>
 #include <iostream>
-#include <pthread.h>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -30,12 +29,12 @@
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
-#include "Demo/DemoAnalyzer/interface/NumpyCommonBlock.h"
-
 #include "DataFormats/TrackReco/interface/TrackFwd.h"
 #include "DataFormats/TrackReco/interface/Track.h"
 #include "DataFormats/TrackingRecHit/interface/TrackingRecHitFwd.h"
 #include "DataFormats/TrackingRecHit/interface/TrackingRecHit.h"
+
+#include "Demo/DemoAnalyzer/interface/NumpyCommonBlock.h"
 
 //
 // class declaration
@@ -59,7 +58,7 @@ private:
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
   virtual void endJob() override;
 
-  // NumpyCommonBlock *cb;
+  // ----------member data ---------------------------
 
   edm::InputTag trackTag;
   edm::EDGetTokenT<reco::TrackCollection> trackToken;
@@ -67,7 +66,26 @@ private:
   edm::InputTag muonTag;
   edm::EDGetTokenT<reco::TrackCollection> muonToken;
 
-  // ----------member data ---------------------------
+  NumpyCommonBlock *tracksBlock;
+  NumpyCommonBlock *hitsBlock;
+
+  NumpyCommonBlockAccessor<double> *trackermu_qoverp;
+  NumpyCommonBlockAccessor<double> *trackermu_qoverp_err;
+  NumpyCommonBlockAccessor<double> *trackermu_phi;
+  NumpyCommonBlockAccessor<double> *trackermu_eta;
+  NumpyCommonBlockAccessor<double> *trackermu_dxy;
+  NumpyCommonBlockAccessor<double> *trackermu_dz;
+  NumpyCommonBlockAccessor<double> *globalmu_qoverp;
+  NumpyCommonBlockAccessor<double> *globalmu_qoverp_err;
+
+  NumpyCommonBlockAccessor<uint64_t> *detid;
+  NumpyCommonBlockAccessor<double> *localx;
+  NumpyCommonBlockAccessor<double> *localy;
+  NumpyCommonBlockAccessor<double> *localx_err;
+  NumpyCommonBlockAccessor<double> *localy_err;
+
+  uint64_t tracksIndex = 0;
+  uint64_t hitsIndex = 0;
 };
 
 //
@@ -88,7 +106,23 @@ DemoAnalyzer::DemoAnalyzer(const edm::ParameterSet& iConfig)
    //now do what ever initialization is needed
    // usesResource("TFileService");
 
-   // cb = (NumpyCommonBlock*)iConfig.getParameter<unsigned long long>("cb");
+   tracksBlock = (NumpyCommonBlock*)iConfig.getParameter<unsigned long long>("tracks");
+   hitsBlock   = (NumpyCommonBlock*)iConfig.getParameter<unsigned long long>("hits");
+
+   trackermu_qoverp     = tracksBlock->newAccessor<double>("trackermu_qoverp");
+   trackermu_qoverp_err = tracksBlock->newAccessor<double>("trackermu_qoverp_err");
+   trackermu_phi        = tracksBlock->newAccessor<double>("trackermu_phi");
+   trackermu_eta        = tracksBlock->newAccessor<double>("trackermu_eta");
+   trackermu_dxy        = tracksBlock->newAccessor<double>("trackermu_dxy");
+   trackermu_dz         = tracksBlock->newAccessor<double>("trackermu_dz");
+   globalmu_qoverp      = tracksBlock->newAccessor<double>("globalmu_qoverp");
+   globalmu_qoverp_err  = tracksBlock->newAccessor<double>("globalmu_qoverp_err");
+
+   detid      = hitsBlock->newAccessor<uint64_t>("detid");
+   localx     = hitsBlock->newAccessor<double>("localx");
+   localy     = hitsBlock->newAccessor<double>("localy");
+   localx_err = hitsBlock->newAccessor<double>("localx_err");
+   localy_err = hitsBlock->newAccessor<double>("localy_err");
 }
 
 
@@ -123,26 +157,46 @@ DemoAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
    if (muons->size() != 2)
      return;
 
-   auto t0 = (*tracks)[0].momentum();
-   auto t1 = (*tracks)[1].momentum();
-   auto m0 = (*muons)[0].momentum();
-   auto m1 = (*muons)[1].momentum();
-   double normal = t0.Dot(m0) / sqrt(t0.Mag2()) / sqrt(m0.Mag2()) + t1.Dot(m1) / sqrt(t1.Mag2()) / sqrt(m1.Mag2());
-   double inverted = t0.Dot(m1) / sqrt(t0.Mag2()) / sqrt(m1.Mag2()) + t1.Dot(m0) / sqrt(t1.Mag2()) / sqrt(m0.Mag2());
-
-   if (inverted > normal)
-     return;
+   // auto t0 = (*tracks)[0].momentum();
+   // auto t1 = (*tracks)[1].momentum();
+   // auto m0 = (*muons)[0].momentum();
+   // auto m1 = (*muons)[1].momentum();
+   // double normal = t0.Dot(m0) / sqrt(t0.Mag2()) / sqrt(m0.Mag2()) + t1.Dot(m1) / sqrt(t1.Mag2()) / sqrt(m1.Mag2());
+   // double inverted = t0.Dot(m1) / sqrt(t0.Mag2()) / sqrt(m1.Mag2()) + t1.Dot(m0) / sqrt(t1.Mag2()) / sqrt(m0.Mag2());
+   // if (inverted > normal)
+   //   return;
 
    reco::TrackCollection::const_iterator track = tracks->begin();
    reco::TrackCollection::const_iterator muon = muons->begin();
-
+   
    for (int i = 0;  i < 2;  i++) {
-     std::cout << "qoverp " << track->qoverp() << " +- " << track->qoverpError() << " --> " << muon->qoverp() << " +- " << muon->qoverpError() << std::endl;
-     std::cout << "    track " << track->phi() << " " << track->eta() << " " << track->dxy() << " " << track->dz() << std::endl;
-     
+     if (tracksIndex < trackermu_qoverp->size()) {
+       trackermu_qoverp->set(tracksIndex, track->qoverp());
+       trackermu_qoverp_err->set(tracksIndex, track->qoverpError());
+       trackermu_phi->set(tracksIndex, track->phi());
+       trackermu_eta->set(tracksIndex, track->eta());
+       trackermu_dxy->set(tracksIndex, track->dxy());
+       trackermu_dz->set(tracksIndex, track->dz());
+       globalmu_qoverp->set(tracksIndex, muon->qoverp());
+       globalmu_qoverp_err->set(tracksIndex, muon->qoverpError());
+       tracksIndex++;
+       if (tracksIndex == trackermu_qoverp->size())
+         tracksBlock->notify(1);
+     }
+
      for (trackingRecHit_iterator hit = muon->recHitsBegin();  hit != muon->recHitsEnd();  ++hit) {
-       if ((*hit)->isValid()  &&  (*hit)->rawId() > 600000000)
-         std::cout << "    hit " << (*hit)->rawId() << " " << (*hit)->localPosition() << " " << (*hit)->localPositionError() << std::endl;
+       if ((*hit)->isValid()  &&  (*hit)->rawId() > 600000000) {   // only muon hits have localpositions
+         if (hitsIndex < detid->size()) {
+           detid->set(hitsIndex, (*hit)->rawId());
+           localx->set(hitsIndex, (*hit)->localPosition().x());
+           localy->set(hitsIndex, (*hit)->localPosition().y());
+           localx_err->set(hitsIndex, (*hit)->localPositionError().xx());
+           localy_err->set(hitsIndex, (*hit)->localPositionError().yy());
+           hitsIndex++;
+           if (hitsIndex == detid->size())
+             hitsBlock->notify(1);
+         }
+       }
      }
 
      ++track;

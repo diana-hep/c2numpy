@@ -52,9 +52,21 @@ class NumpyCommonBlock(object):
         c_locks = ctypes.ARRAY(ctypes.POINTER(None), numArrays)(*[ctypes.cast(x._lock, ctypes.POINTER(None)) for x in self._locks])
         self._statelock = prwlock.RWLock()
         c_statelock = ctypes.cast(self._statelock._lock, ctypes.POINTER(None))
-        self._state = ctypes.c_uint64(0)
 
-        self._struct = self.struct(ctypes.c_uint64(numArrays), c_names, c_types, c_data, c_lengths, c_locks, c_statelock, self._state)
+        self._struct = self.struct(ctypes.c_uint64(numArrays), c_names, c_types, c_data, c_lengths, c_locks, c_statelock, ctypes.c_uint64(0))
+
+    def pointer(self):
+        return ctypes.addressof(self._struct)
+
+    def pandas(self):
+        import pandas
+        for lock in self._locks:
+            lock.acquire_read()
+        try:
+            return pandas.DataFrame(self._arrays, columns=self._order)
+        finally:
+            for lock in self._locks:
+                lock.release()
 
     class Accessor(object):
         def __init__(self, lock, array):
@@ -79,20 +91,20 @@ class NumpyCommonBlock(object):
             return len(self.array)
 
     def accessor(self, name):
-        return self.Accessor(self._locks[self._order[name]], self._arrays[name])
+        return self.Accessor(self._locks[self._order.index(name)], self._arrays[name])
 
     def _wait(self, condition):
         self._statelock.acquire_read()
         try:
-            current = self._state.value
+            current = self._struct.state
         finally:
             self._statelock.release()
 
         while condition(current):
-            time.sleep(1e-6)
+            time.sleep(0.001)
             self._statelock.acquire_read()
             try:
-                current = self._state.value
+                current = self._struct.state
             finally:
                 self._statelock.release()
 
@@ -105,8 +117,6 @@ class NumpyCommonBlock(object):
     def notify(self, newstate):
         self._statelock.acquire_write()
         try:
-            self._state.value = newstate
+            self._struct.state = newstate
         finally:
             self._statelock.release()
-
-
